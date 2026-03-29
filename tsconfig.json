@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "paths": {
+      "@qualia/core": ["./packages/core/src"],
+      "@qualia/renderer": ["./packages/renderer/src"],
+      "@qualia/ui": ["./packages/ui/src"]
+    },
+    "baseUrl": "."
+  },
+  "include": [
+    "packages/core/src/**/*",
+    "packages/renderer/src/**/*",
+    "packages/ui/src/**/*"
+  ]
+}

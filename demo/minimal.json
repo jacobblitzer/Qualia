@@ -1,0 +1,11 @@
+{
+  "nodes": [
+    { "id": "a", "label": "Alpha" },
+    { "id": "b", "label": "Beta" },
+    { "id": "c", "label": "Gamma" }
+  ],
+  "edges": [
+    { "id": "e1", "source": "a", "target": "b", "type": "link" },
+    { "id": "e2", "source": "b", "target": "c", "type": "link" }
+  ]
+}

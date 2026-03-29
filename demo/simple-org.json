@@ -1,0 +1,97 @@
+{
+  "meta": {
+    "format": "qualia-v1",
+    "title": "Simple Organization",
+    "description": "A small org with 12 people, two contexts: reporting structure and social network",
+    "created": "2026-03-28T00:00:00Z"
+  },
+  "nodeTypes": {
+    "person": { "color": "#4488ff", "icon": "circle", "baseRadius": 0.5 },
+    "team": { "color": "#ff8844", "icon": "hexagon", "baseRadius": 0.7 }
+  },
+  "edgeTypes": {
+    "reports_to": { "color": "#6666aa", "dash": [], "defaultWeight": 1, "directional": true },
+    "social": { "color": "#cc8844", "dash": [], "defaultWeight": 0.5, "directional": false }
+  },
+  "nodes": [
+    { "id": "alice", "type": "person", "label": "Alice", "subtitle": "CTO", "importance": 0.9, "tags": ["leadership"] },
+    { "id": "bob", "type": "person", "label": "Bob", "subtitle": "VP Eng", "importance": 0.8, "tags": ["leadership"] },
+    { "id": "carol", "type": "person", "label": "Carol", "subtitle": "VP Design", "importance": 0.8, "tags": ["leadership"] },
+    { "id": "dave", "type": "person", "label": "Dave", "subtitle": "Tech Lead", "importance": 0.7 },
+    { "id": "eve", "type": "person", "label": "Eve", "subtitle": "Sr Designer", "importance": 0.7 },
+    { "id": "frank", "type": "person", "label": "Frank", "importance": 0.5 },
+    { "id": "grace", "type": "person", "label": "Grace", "importance": 0.5 },
+    { "id": "heidi", "type": "person", "label": "Heidi", "importance": 0.6 },
+    { "id": "ivan", "type": "person", "label": "Ivan", "importance": 0.5 },
+    { "id": "judy", "type": "person", "label": "Judy", "subtitle": "PM", "importance": 0.7 },
+    { "id": "karl", "type": "person", "label": "Karl", "importance": 0.6 },
+    { "id": "lisa", "type": "person", "label": "Lisa", "importance": 0.6 }
+  ],
+  "contexts": [
+    {
+      "id": "hierarchy",
+      "label": "Reporting Structure",
+      "edges": [
+        { "id": "e1", "source": "bob", "target": "alice", "type": "reports_to" },
+        { "id": "e2", "source": "carol", "target": "alice", "type": "reports_to" },
+        { "id": "e3", "source": "dave", "target": "bob", "type": "reports_to" },
+        { "id": "e4", "source": "frank", "target": "dave", "type": "reports_to" },
+        { "id": "e5", "source": "grace", "target": "dave", "type": "reports_to" },
+        { "id": "e6", "source": "ivan", "target": "bob", "type": "reports_to" },
+        { "id": "e7", "source": "eve", "target": "carol", "type": "reports_to" },
+        { "id": "e8", "source": "heidi", "target": "carol", "type": "reports_to" },
+        { "id": "e9", "source": "judy", "target": "alice", "type": "reports_to" },
+        { "id": "e10", "source": "karl", "target": "bob", "type": "reports_to" },
+        { "id": "e11", "source": "lisa", "target": "dave", "type": "reports_to" }
+      ],
+      "fields": [
+        {
+          "id": "f-eng", "label": "Engineering",
+          "nodeIds": ["bob", "dave", "frank", "grace", "ivan", "karl", "lisa"],
+          "color": [60, 120, 255],
+          "sdf": { "radius": 8, "blendFactor": 4, "transparency": 0.6 }
+        },
+        {
+          "id": "f-design", "label": "Design",
+          "nodeIds": ["carol", "eve", "heidi"],
+          "color": [255, 100, 160],
+          "sdf": { "radius": 6, "blendFactor": 3, "transparency": 0.6 }
+        }
+      ],
+      "layout": { "algorithm": "force-directed" }
+    },
+    {
+      "id": "social",
+      "label": "Social Network",
+      "edges": [
+        { "id": "s1", "source": "alice", "target": "carol", "type": "social", "weight": 0.9 },
+        { "id": "s2", "source": "bob", "target": "dave", "type": "social", "weight": 0.8 },
+        { "id": "s3", "source": "frank", "target": "grace", "type": "social", "weight": 0.9 },
+        { "id": "s4", "source": "eve", "target": "heidi", "type": "social", "weight": 0.7 },
+        { "id": "s5", "source": "dave", "target": "ivan", "type": "social", "weight": 0.6 },
+        { "id": "s6", "source": "judy", "target": "alice", "type": "social", "weight": 0.7 },
+        { "id": "s7", "source": "grace", "target": "eve", "type": "social", "weight": 0.5 },
+        { "id": "s8", "source": "karl", "target": "heidi", "type": "social", "weight": 0.6 },
+        { "id": "s9", "source": "frank", "target": "karl", "type": "social", "weight": 0.7 },
+        { "id": "s10", "source": "bob", "target": "judy", "type": "social", "weight": 0.5 },
+        { "id": "s11", "source": "lisa", "target": "grace", "type": "social", "weight": 0.8 },
+        { "id": "s12", "source": "ivan", "target": "frank", "type": "social", "weight": 0.6 }
+      ],
+      "fields": [
+        {
+          "id": "f-lunch", "label": "Lunch Crew",
+          "nodeIds": ["frank", "grace", "karl", "ivan", "lisa"],
+          "color": [255, 180, 40],
+          "sdf": { "radius": 7, "blendFactor": 3.5, "transparency": 0.5 }
+        },
+        {
+          "id": "f-coffee", "label": "Coffee Group",
+          "nodeIds": ["alice", "carol", "judy", "eve"],
+          "color": [180, 80, 255],
+          "sdf": { "radius": 6, "blendFactor": 3, "transparency": 0.5 }
+        }
+      ],
+      "layout": { "algorithm": "force-directed" }
+    }
+  ]
+}

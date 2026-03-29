@@ -1,0 +1,286 @@
+{
+  "meta": {
+    "format": "qualia-v1",
+    "title": "Software Architecture",
+    "description": "A complex system with 60+ nodes across 4 contexts: code dependencies, data flow, team ownership, and deployment",
+    "created": "2026-03-28T00:00:00Z"
+  },
+  "nodeTypes": {
+    "service": { "color": "#4488ff", "icon": "hexagon", "baseRadius": 0.6 },
+    "database": { "color": "#44cc88", "icon": "cylinder", "baseRadius": 0.55 },
+    "queue": { "color": "#ff8844", "icon": "diamond", "baseRadius": 0.5 },
+    "gateway": { "color": "#cc44ff", "icon": "triangle", "baseRadius": 0.65 },
+    "frontend": { "color": "#ffcc44", "icon": "square", "baseRadius": 0.55 },
+    "person": { "color": "#88aaff", "icon": "circle", "baseRadius": 0.45 }
+  },
+  "edgeTypes": {
+    "depends_on": { "color": "#4466aa", "dash": [], "defaultWeight": 1, "directional": true },
+    "data_flow": { "color": "#44aa66", "dash": [4, 4], "defaultWeight": 0.8, "directional": true },
+    "owns": { "color": "#aa6644", "dash": [], "defaultWeight": 0.6, "directional": true },
+    "deploys_to": { "color": "#aa44aa", "dash": [8, 4], "defaultWeight": 0.7, "directional": true }
+  },
+  "nodes": [
+    { "id": "api-gateway", "type": "gateway", "label": "API Gateway", "importance": 0.95, "tags": ["infrastructure", "public"] },
+    { "id": "auth-svc", "type": "service", "label": "Auth Service", "importance": 0.9, "tags": ["security", "core"] },
+    { "id": "user-svc", "type": "service", "label": "User Service", "importance": 0.85, "tags": ["core"] },
+    { "id": "order-svc", "type": "service", "label": "Order Service", "importance": 0.8, "tags": ["commerce"] },
+    { "id": "payment-svc", "type": "service", "label": "Payment Service", "importance": 0.85, "tags": ["commerce", "security"] },
+    { "id": "inventory-svc", "type": "service", "label": "Inventory Service", "importance": 0.7, "tags": ["commerce"] },
+    { "id": "notification-svc", "type": "service", "label": "Notification Service", "importance": 0.6, "tags": ["comms"] },
+    { "id": "search-svc", "type": "service", "label": "Search Service", "importance": 0.7, "tags": ["discovery"] },
+    { "id": "analytics-svc", "type": "service", "label": "Analytics Service", "importance": 0.65, "tags": ["data"] },
+    { "id": "recommendation-svc", "type": "service", "label": "Recommendation Engine", "importance": 0.6, "tags": ["ml", "discovery"] },
+    { "id": "email-svc", "type": "service", "label": "Email Service", "importance": 0.5, "tags": ["comms"] },
+    { "id": "sms-svc", "type": "service", "label": "SMS Service", "importance": 0.45, "tags": ["comms"] },
+    { "id": "cdn", "type": "service", "label": "CDN", "importance": 0.7, "tags": ["infrastructure"] },
+    { "id": "cache", "type": "service", "label": "Cache Layer", "importance": 0.75, "tags": ["infrastructure"] },
+    { "id": "logging-svc", "type": "service", "label": "Logging Service", "importance": 0.55, "tags": ["observability"] },
+    { "id": "monitoring-svc", "type": "service", "label": "Monitoring", "importance": 0.6, "tags": ["observability"] },
+
+    { "id": "user-db", "type": "database", "label": "User DB", "importance": 0.8 },
+    { "id": "order-db", "type": "database", "label": "Order DB", "importance": 0.75 },
+    { "id": "inventory-db", "type": "database", "label": "Inventory DB", "importance": 0.65 },
+    { "id": "analytics-db", "type": "database", "label": "Analytics DB", "importance": 0.6 },
+    { "id": "search-index", "type": "database", "label": "Search Index", "importance": 0.65 },
+    { "id": "session-store", "type": "database", "label": "Session Store", "importance": 0.7 },
+
+    { "id": "event-bus", "type": "queue", "label": "Event Bus", "importance": 0.85, "tags": ["infrastructure"] },
+    { "id": "task-queue", "type": "queue", "label": "Task Queue", "importance": 0.6, "tags": ["infrastructure"] },
+    { "id": "email-queue", "type": "queue", "label": "Email Queue", "importance": 0.45, "tags": ["comms"] },
+
+    { "id": "web-app", "type": "frontend", "label": "Web App", "importance": 0.9 },
+    { "id": "mobile-app", "type": "frontend", "label": "Mobile App", "importance": 0.85 },
+    { "id": "admin-panel", "type": "frontend", "label": "Admin Panel", "importance": 0.6 },
+
+    { "id": "alice", "type": "person", "label": "Alice (Platform Lead)", "importance": 0.7 },
+    { "id": "bob", "type": "person", "label": "Bob (Commerce Lead)", "importance": 0.7 },
+    { "id": "carol", "type": "person", "label": "Carol (Frontend Lead)", "importance": 0.7 },
+    { "id": "dave", "type": "person", "label": "Dave (Data Lead)", "importance": 0.65 },
+    { "id": "eve", "type": "person", "label": "Eve (SRE Lead)", "importance": 0.65 },
+
+    { "id": "staging", "type": "service", "label": "Staging Env", "importance": 0.5 },
+    { "id": "production", "type": "service", "label": "Production", "importance": 0.95 },
+    { "id": "ci-cd", "type": "service", "label": "CI/CD Pipeline", "importance": 0.7 },
+
+    { "id": "shipping-svc", "type": "service", "label": "Shipping Service", "importance": 0.6, "tags": ["commerce"] },
+    { "id": "tax-svc", "type": "service", "label": "Tax Service", "importance": 0.5, "tags": ["commerce"] },
+    { "id": "review-svc", "type": "service", "label": "Review Service", "importance": 0.55, "tags": ["discovery"] },
+    { "id": "image-svc", "type": "service", "label": "Image Service", "importance": 0.5 },
+    { "id": "export-svc", "type": "service", "label": "Export Service", "importance": 0.45 },
+    { "id": "import-svc", "type": "service", "label": "Import Service", "importance": 0.45 },
+    { "id": "webhook-svc", "type": "service", "label": "Webhook Service", "importance": 0.5 },
+    { "id": "rate-limiter", "type": "service", "label": "Rate Limiter", "importance": 0.6, "tags": ["security"] },
+    { "id": "feature-flags", "type": "service", "label": "Feature Flags", "importance": 0.5 },
+
+    { "id": "review-db", "type": "database", "label": "Review DB", "importance": 0.5 },
+    { "id": "image-store", "type": "database", "label": "Image Store", "importance": 0.5 },
+    { "id": "webhook-db", "type": "database", "label": "Webhook DB", "importance": 0.4 },
+
+    { "id": "frank", "type": "person", "label": "Frank (Auth)", "importance": 0.55 },
+    { "id": "grace", "type": "person", "label": "Grace (Search)", "importance": 0.55 },
+    { "id": "heidi", "type": "person", "label": "Heidi (Mobile)", "importance": 0.55 },
+    { "id": "ivan", "type": "person", "label": "Ivan (Payments)", "importance": 0.55 },
+    { "id": "judy", "type": "person", "label": "Judy (Notif.)", "importance": 0.5 },
+    { "id": "karl", "type": "person", "label": "Karl (Infra)", "importance": 0.55 },
+
+    { "id": "ml-pipeline", "type": "service", "label": "ML Pipeline", "importance": 0.6 },
+    { "id": "model-store", "type": "database", "label": "Model Store", "importance": 0.5 },
+    { "id": "ab-test-svc", "type": "service", "label": "A/B Testing", "importance": 0.5 },
+    { "id": "config-svc", "type": "service", "label": "Config Service", "importance": 0.55 },
+    { "id": "secrets-mgr", "type": "service", "label": "Secrets Manager", "importance": 0.65, "tags": ["security"] },
+
+    { "id": "lisa", "type": "person", "label": "Lisa (DevOps)", "importance": 0.55 },
+    { "id": "mike", "type": "person", "label": "Mike (ML Eng)", "importance": 0.55 }
+  ],
+  "contexts": [
+    {
+      "id": "dependencies",
+      "label": "Code Dependencies",
+      "description": "Which services depend on which",
+      "edges": [
+        { "id": "d1", "source": "web-app", "target": "api-gateway", "type": "depends_on" },
+        { "id": "d2", "source": "mobile-app", "target": "api-gateway", "type": "depends_on" },
+        { "id": "d3", "source": "admin-panel", "target": "api-gateway", "type": "depends_on" },
+        { "id": "d4", "source": "api-gateway", "target": "auth-svc", "type": "depends_on" },
+        { "id": "d5", "source": "api-gateway", "target": "rate-limiter", "type": "depends_on" },
+        { "id": "d6", "source": "auth-svc", "target": "user-db", "type": "depends_on" },
+        { "id": "d7", "source": "auth-svc", "target": "session-store", "type": "depends_on" },
+        { "id": "d8", "source": "user-svc", "target": "user-db", "type": "depends_on" },
+        { "id": "d9", "source": "order-svc", "target": "order-db", "type": "depends_on" },
+        { "id": "d10", "source": "order-svc", "target": "payment-svc", "type": "depends_on" },
+        { "id": "d11", "source": "order-svc", "target": "inventory-svc", "type": "depends_on" },
+        { "id": "d12", "source": "payment-svc", "target": "order-db", "type": "depends_on" },
+        { "id": "d13", "source": "inventory-svc", "target": "inventory-db", "type": "depends_on" },
+        { "id": "d14", "source": "search-svc", "target": "search-index", "type": "depends_on" },
+        { "id": "d15", "source": "analytics-svc", "target": "analytics-db", "type": "depends_on" },
+        { "id": "d16", "source": "notification-svc", "target": "email-queue", "type": "depends_on" },
+        { "id": "d17", "source": "email-svc", "target": "email-queue", "type": "depends_on" },
+        { "id": "d18", "source": "recommendation-svc", "target": "analytics-db", "type": "depends_on" },
+        { "id": "d19", "source": "recommendation-svc", "target": "ml-pipeline", "type": "depends_on" },
+        { "id": "d20", "source": "ml-pipeline", "target": "model-store", "type": "depends_on" },
+        { "id": "d21", "source": "review-svc", "target": "review-db", "type": "depends_on" },
+        { "id": "d22", "source": "image-svc", "target": "image-store", "type": "depends_on" },
+        { "id": "d23", "source": "image-svc", "target": "cdn", "type": "depends_on" },
+        { "id": "d24", "source": "webhook-svc", "target": "webhook-db", "type": "depends_on" },
+        { "id": "d25", "source": "order-svc", "target": "shipping-svc", "type": "depends_on" },
+        { "id": "d26", "source": "order-svc", "target": "tax-svc", "type": "depends_on" },
+        { "id": "d27", "source": "api-gateway", "target": "config-svc", "type": "depends_on" },
+        { "id": "d28", "source": "auth-svc", "target": "secrets-mgr", "type": "depends_on" },
+        { "id": "d29", "source": "payment-svc", "target": "secrets-mgr", "type": "depends_on" },
+        { "id": "d30", "source": "cache", "target": "session-store", "type": "depends_on" },
+        { "id": "d31", "source": "ab-test-svc", "target": "analytics-db", "type": "depends_on" },
+        { "id": "d32", "source": "web-app", "target": "cdn", "type": "depends_on" }
+      ],
+      "fields": [
+        {
+          "id": "f-core", "label": "Core Services",
+          "nodeIds": ["api-gateway", "auth-svc", "user-svc", "rate-limiter", "cache", "config-svc", "secrets-mgr"],
+          "color": [80, 140, 255], "sdf": { "radius": 10, "blendFactor": 5, "transparency": 0.6 }
+        },
+        {
+          "id": "f-commerce", "label": "Commerce",
+          "nodeIds": ["order-svc", "payment-svc", "inventory-svc", "shipping-svc", "tax-svc"],
+          "color": [255, 140, 60], "sdf": { "radius": 8, "blendFactor": 4, "transparency": 0.6 }
+        },
+        {
+          "id": "f-data", "label": "Data Layer",
+          "nodeIds": ["user-db", "order-db", "inventory-db", "analytics-db", "search-index", "session-store", "review-db", "image-store", "webhook-db", "model-store"],
+          "color": [60, 200, 130], "sdf": { "radius": 9, "blendFactor": 4, "transparency": 0.5 }
+        }
+      ],
+      "layout": { "algorithm": "force-directed" }
+    },
+    {
+      "id": "data-flow",
+      "label": "Data Flow",
+      "description": "How data moves through the system",
+      "edges": [
+        { "id": "df1", "source": "web-app", "target": "api-gateway", "type": "data_flow" },
+        { "id": "df2", "source": "api-gateway", "target": "order-svc", "type": "data_flow" },
+        { "id": "df3", "source": "order-svc", "target": "event-bus", "type": "data_flow" },
+        { "id": "df4", "source": "event-bus", "target": "analytics-svc", "type": "data_flow" },
+        { "id": "df5", "source": "event-bus", "target": "notification-svc", "type": "data_flow" },
+        { "id": "df6", "source": "event-bus", "target": "search-svc", "type": "data_flow" },
+        { "id": "df7", "source": "event-bus", "target": "inventory-svc", "type": "data_flow" },
+        { "id": "df8", "source": "notification-svc", "target": "email-queue", "type": "data_flow" },
+        { "id": "df9", "source": "email-queue", "target": "email-svc", "type": "data_flow" },
+        { "id": "df10", "source": "analytics-svc", "target": "ml-pipeline", "type": "data_flow" },
+        { "id": "df11", "source": "ml-pipeline", "target": "recommendation-svc", "type": "data_flow" },
+        { "id": "df12", "source": "search-svc", "target": "search-index", "type": "data_flow" },
+        { "id": "df13", "source": "order-svc", "target": "payment-svc", "type": "data_flow" },
+        { "id": "df14", "source": "payment-svc", "target": "webhook-svc", "type": "data_flow" },
+        { "id": "df15", "source": "image-svc", "target": "cdn", "type": "data_flow" },
+        { "id": "df16", "source": "logging-svc", "target": "analytics-db", "type": "data_flow" },
+        { "id": "df17", "source": "monitoring-svc", "target": "analytics-db", "type": "data_flow" },
+        { "id": "df18", "source": "event-bus", "target": "logging-svc", "type": "data_flow" }
+      ],
+      "fields": [
+        {
+          "id": "f-event", "label": "Event-Driven",
+          "nodeIds": ["event-bus", "analytics-svc", "notification-svc", "search-svc", "logging-svc", "monitoring-svc"],
+          "color": [255, 200, 80], "sdf": { "radius": 9, "blendFactor": 4, "transparency": 0.55 }
+        },
+        {
+          "id": "f-ml", "label": "ML Pipeline",
+          "nodeIds": ["ml-pipeline", "recommendation-svc", "model-store", "analytics-db", "ab-test-svc"],
+          "color": [200, 80, 255], "sdf": { "radius": 7, "blendFactor": 3, "transparency": 0.55 }
+        }
+      ],
+      "layout": { "algorithm": "force-directed" }
+    },
+    {
+      "id": "ownership",
+      "label": "Team Ownership",
+      "description": "Which team owns which services",
+      "edges": [
+        { "id": "o1", "source": "alice", "target": "api-gateway", "type": "owns" },
+        { "id": "o2", "source": "alice", "target": "auth-svc", "type": "owns" },
+        { "id": "o3", "source": "alice", "target": "cache", "type": "owns" },
+        { "id": "o4", "source": "alice", "target": "config-svc", "type": "owns" },
+        { "id": "o5", "source": "bob", "target": "order-svc", "type": "owns" },
+        { "id": "o6", "source": "bob", "target": "payment-svc", "type": "owns" },
+        { "id": "o7", "source": "bob", "target": "inventory-svc", "type": "owns" },
+        { "id": "o8", "source": "bob", "target": "shipping-svc", "type": "owns" },
+        { "id": "o9", "source": "carol", "target": "web-app", "type": "owns" },
+        { "id": "o10", "source": "carol", "target": "mobile-app", "type": "owns" },
+        { "id": "o11", "source": "carol", "target": "admin-panel", "type": "owns" },
+        { "id": "o12", "source": "dave", "target": "analytics-svc", "type": "owns" },
+        { "id": "o13", "source": "dave", "target": "search-svc", "type": "owns" },
+        { "id": "o14", "source": "dave", "target": "recommendation-svc", "type": "owns" },
+        { "id": "o15", "source": "dave", "target": "ml-pipeline", "type": "owns" },
+        { "id": "o16", "source": "eve", "target": "monitoring-svc", "type": "owns" },
+        { "id": "o17", "source": "eve", "target": "logging-svc", "type": "owns" },
+        { "id": "o18", "source": "eve", "target": "ci-cd", "type": "owns" },
+        { "id": "o19", "source": "frank", "target": "auth-svc", "type": "owns" },
+        { "id": "o20", "source": "frank", "target": "secrets-mgr", "type": "owns" },
+        { "id": "o21", "source": "grace", "target": "search-svc", "type": "owns" },
+        { "id": "o22", "source": "heidi", "target": "mobile-app", "type": "owns" },
+        { "id": "o23", "source": "ivan", "target": "payment-svc", "type": "owns" },
+        { "id": "o24", "source": "judy", "target": "notification-svc", "type": "owns" },
+        { "id": "o25", "source": "judy", "target": "email-svc", "type": "owns" },
+        { "id": "o26", "source": "karl", "target": "event-bus", "type": "owns" },
+        { "id": "o27", "source": "karl", "target": "task-queue", "type": "owns" },
+        { "id": "o28", "source": "lisa", "target": "ci-cd", "type": "owns" },
+        { "id": "o29", "source": "lisa", "target": "staging", "type": "owns" },
+        { "id": "o30", "source": "lisa", "target": "production", "type": "owns" },
+        { "id": "o31", "source": "mike", "target": "ml-pipeline", "type": "owns" },
+        { "id": "o32", "source": "mike", "target": "model-store", "type": "owns" }
+      ],
+      "fields": [
+        {
+          "id": "f-platform", "label": "Platform Team",
+          "nodeIds": ["alice", "frank", "karl", "api-gateway", "auth-svc", "cache", "config-svc", "event-bus", "task-queue", "rate-limiter", "secrets-mgr"],
+          "color": [100, 160, 255], "sdf": { "radius": 10, "blendFactor": 5, "transparency": 0.55 }
+        },
+        {
+          "id": "f-commerce-team", "label": "Commerce Team",
+          "nodeIds": ["bob", "ivan", "order-svc", "payment-svc", "inventory-svc", "shipping-svc", "tax-svc"],
+          "color": [255, 160, 80], "sdf": { "radius": 8, "blendFactor": 4, "transparency": 0.55 }
+        },
+        {
+          "id": "f-frontend-team", "label": "Frontend Team",
+          "nodeIds": ["carol", "heidi", "web-app", "mobile-app", "admin-panel"],
+          "color": [255, 220, 80], "sdf": { "radius": 7, "blendFactor": 3, "transparency": 0.55 }
+        },
+        {
+          "id": "f-data-team", "label": "Data Team",
+          "nodeIds": ["dave", "grace", "mike", "analytics-svc", "search-svc", "recommendation-svc", "ml-pipeline"],
+          "color": [160, 100, 255], "sdf": { "radius": 8, "blendFactor": 4, "transparency": 0.55 }
+        }
+      ],
+      "layout": { "algorithm": "force-directed" }
+    },
+    {
+      "id": "deployment",
+      "label": "Deployment",
+      "description": "Deployment topology and environments",
+      "edges": [
+        { "id": "dp1", "source": "ci-cd", "target": "staging", "type": "deploys_to" },
+        { "id": "dp2", "source": "ci-cd", "target": "production", "type": "deploys_to" },
+        { "id": "dp3", "source": "api-gateway", "target": "production", "type": "deploys_to" },
+        { "id": "dp4", "source": "auth-svc", "target": "production", "type": "deploys_to" },
+        { "id": "dp5", "source": "order-svc", "target": "production", "type": "deploys_to" },
+        { "id": "dp6", "source": "payment-svc", "target": "production", "type": "deploys_to" },
+        { "id": "dp7", "source": "web-app", "target": "cdn", "type": "deploys_to" },
+        { "id": "dp8", "source": "mobile-app", "target": "production", "type": "deploys_to" },
+        { "id": "dp9", "source": "monitoring-svc", "target": "production", "type": "deploys_to" },
+        { "id": "dp10", "source": "logging-svc", "target": "production", "type": "deploys_to" },
+        { "id": "dp11", "source": "feature-flags", "target": "production", "type": "deploys_to" },
+        { "id": "dp12", "source": "ab-test-svc", "target": "production", "type": "deploys_to" }
+      ],
+      "fields": [
+        {
+          "id": "f-prod", "label": "Production",
+          "nodeIds": ["production", "api-gateway", "auth-svc", "order-svc", "payment-svc", "monitoring-svc", "logging-svc"],
+          "color": [255, 80, 80], "sdf": { "radius": 10, "blendFactor": 5, "transparency": 0.5 }
+        },
+        {
+          "id": "f-pipeline", "label": "CI/CD",
+          "nodeIds": ["ci-cd", "staging", "feature-flags", "ab-test-svc"],
+          "color": [80, 200, 200], "sdf": { "radius": 6, "blendFactor": 3, "transparency": 0.5 }
+        }
+      ],
+      "layout": { "algorithm": "force-directed" }
+    }
+  ]
+}
