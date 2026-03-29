@@ -1,22 +1,20 @@
-import type { LayoutConfig, LayoutWorkerMessage, LayoutWorkerResult, NodeCore, Edge } from './types';
+import type { LayoutConfig, NodeCore, Edge } from './types';
 
 type PositionCallback = (contextId: string, positions: Record<string, [number, number, number]>) => void;
 
 /**
- * Layout engine that runs d3-force-3d in a Web Worker.
- * Supports force-directed, hierarchy, and manual layouts.
+ * Layout engine — synchronous force-directed, hierarchy, and manual layouts.
+ * Web Worker path has been removed (silent failures with d3-force-3d imports).
  */
 export class LayoutEngine {
-  private _worker: Worker | null = null;
   private _onPositions: PositionCallback | null = null;
-  private _workerTimeout: ReturnType<typeof setTimeout> | null = null;
 
   onPositions(callback: PositionCallback): void {
     this._onPositions = callback;
   }
 
   /**
-   * Start a force-directed layout for a context.
+   * Start layout computation for a context.
    */
   start(
     contextId: string,
@@ -42,108 +40,17 @@ export class LayoutEngine {
       return;
     }
 
-    // Force-directed: use sync fallback (worker can be re-enabled later)
-    // The worker path has silent failure modes (d3-force-3d import issues inside
-    // worker context). The sync fallback is instant for small graphs (<100 nodes).
-    console.log(`[LayoutEngine] Starting ${config.algorithm} layout for context "${contextId}" with ${nodes.length} nodes, ${edges.length} edges`);
-
-    this.stop();
-
-    // Try worker first, with fallback
-    let workerFailed = false;
-    try {
-      this._worker = new Worker(
-        new URL('./layout.worker.ts', import.meta.url),
-        { type: 'module' },
-      );
-    } catch {
-      workerFailed = true;
+    // Force-directed: synchronous layout (instant for <100 nodes)
+    console.log(`[LayoutEngine] Running sync ${config.algorithm} layout for "${contextId}" — ${nodes.length} nodes, ${edges.length} edges`);
+    const positions = this._normalizePositions(this._fallbackForceLayout(nodes, edges, existingPositions), 35);
+    console.log(`[LayoutEngine] Produced ${Object.keys(positions).length} positions for "${contextId}"`);
+    if (this._onPositions) {
+      this._onPositions(contextId, positions);
     }
-
-    if (workerFailed || !this._worker) {
-      console.log('[LayoutEngine] Worker unavailable, using sync fallback');
-      const positions = this._normalizePositions(this._fallbackForceLayout(nodes, edges, existingPositions));
-      console.log(`[LayoutEngine] Sync fallback produced ${Object.keys(positions).length} positions for "${contextId}"`);
-      if (this._onPositions) {
-        this._onPositions(contextId, positions);
-      }
-      return;
-    }
-
-    // Worker error handler — fall back to sync
-    this._worker.onerror = (e) => {
-      console.warn('[LayoutEngine] Worker error, falling back to sync layout:', e.message);
-      this._clearWorkerTimeout();
-      this._worker?.terminate();
-      this._worker = null;
-      const positions = this._normalizePositions(this._fallbackForceLayout(nodes, edges, existingPositions));
-      console.log(`[LayoutEngine] Fallback produced ${Object.keys(positions).length} positions for "${contextId}"`);
-      if (this._onPositions) {
-        this._onPositions(contextId, positions);
-      }
-    };
-
-    // Timeout — if worker hasn't produced positions within 5s, fall back
-    this._workerTimeout = setTimeout(() => {
-      if (this._worker) {
-        console.warn('[LayoutEngine] Worker timed out, falling back to sync layout');
-        this._worker.terminate();
-        this._worker = null;
-        const positions = this._normalizePositions(this._fallbackForceLayout(nodes, edges, existingPositions));
-        console.log(`[LayoutEngine] Timeout fallback produced ${Object.keys(positions).length} positions for "${contextId}"`);
-        if (this._onPositions) {
-          this._onPositions(contextId, positions);
-        }
-      }
-    }, 5000);
-
-    this._worker.onmessage = (e: MessageEvent<LayoutWorkerResult>) => {
-      this._clearWorkerTimeout();
-      const positions = this._normalizePositions(e.data.positions);
-      console.log(`[LayoutEngine] Received ${Object.keys(positions).length} positions for context "${e.data.contextId}" (${e.data.type})`);
-      this._onPositions?.(e.data.contextId, positions);
-    };
-
-    const nodeMsg = nodes.map(n => {
-      const pos = existingPositions?.[n.id];
-      return {
-        id: n.id,
-        x: pos?.[0],
-        y: pos?.[1],
-        z: pos?.[2],
-        importance: n.importance ?? 0.5,
-      };
-    });
-
-    const edgeMsg = edges.map(e => ({
-      source: e.source,
-      target: e.target,
-      weight: e.weight ?? 1,
-    }));
-
-    this._worker.postMessage({
-      type: 'init',
-      contextId,
-      nodes: nodeMsg,
-      edges: edgeMsg,
-      config,
-    } satisfies LayoutWorkerMessage);
   }
 
   stop(): void {
-    this._clearWorkerTimeout();
-    if (this._worker) {
-      this._worker.postMessage({ type: 'stop' });
-      this._worker.terminate();
-      this._worker = null;
-    }
-  }
-
-  private _clearWorkerTimeout(): void {
-    if (this._workerTimeout !== null) {
-      clearTimeout(this._workerTimeout);
-      this._workerTimeout = null;
-    }
+    // No-op: sync layout completes immediately
   }
 
   /**

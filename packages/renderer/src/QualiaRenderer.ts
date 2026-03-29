@@ -1,5 +1,6 @@
-import type { EventStore, QualiaState } from '@qualia/core';
+import type { EventStore } from '@qualia/core';
 import { SceneManager } from './SceneManager';
+import type { DisplayModeSettings } from './displayModes';
 
 type NodeCallback = (nodeId: string) => void;
 type EdgeCallback = (edgeId: string) => void;
@@ -57,6 +58,12 @@ export class QualiaRenderer {
     this._scene.interaction.onNodeHover(callback);
   }
 
+  onNodeDblClick(callback: NodeCallback): void {
+    this._scene.interaction.onNodeDblClick((id) => {
+      if (id) callback(id);
+    });
+  }
+
   onEdgeClick(callback: EdgeCallback): void {
     this._scene.interaction.onEdgeClick((id) => {
       if (id) callback(id);
@@ -84,12 +91,63 @@ export class QualiaRenderer {
   }
 
   resetCamera(duration?: number): void {
-    this._scene.controls.target.set(0, 0, 0);
-    this._scene.camera.position.set(0, 10, 50);
+    this._scene.resetCamera(duration);
   }
 
   fitToView(duration?: number): void {
     this._scene.fitToView(duration);
+  }
+
+  toggleGrid(): void {
+    this._scene.toggleGrid();
+  }
+
+  get gridVisible(): boolean {
+    return this._scene.gridVisible;
+  }
+
+  applyViewerSettings(settings: Parameters<SceneManager['applyViewerSettings']>[0]): void {
+    this._scene.applyViewerSettings(settings);
+  }
+
+  applyDisplayMode(settings: DisplayModeSettings): void {
+    this._scene.applyViewerSettings(settings);
+  }
+
+  getViewerSettings(): ReturnType<SceneManager['getViewerSettings']> {
+    return this._scene.getViewerSettings();
+  }
+
+  // --- Visibility ---
+
+  setLabelsVisible(visible: boolean): void {
+    this._scene.setLabelsVisible(visible);
+  }
+
+  setLabelOpacity(opacity: number): void {
+    this._scene.setLabelOpacity(opacity);
+  }
+
+  setNodeMeshVisible(visible: boolean): void {
+    this._scene.setNodeMeshVisible(visible);
+  }
+
+  setEdgesVisible(visible: boolean): void {
+    this._scene.setEdgesVisible(visible);
+  }
+
+  // --- Gumball ---
+
+  showGumball(nodeId: string, position: [number, number, number]): void {
+    this._scene.interaction.showGumball(nodeId, position);
+  }
+
+  hideGumball(): void {
+    this._scene.interaction.hideGumball();
+  }
+
+  onNodeDrag(callback: (nodeId: string, position: [number, number, number]) => void): void {
+    this._scene.interaction.gumball.onDrag(callback);
   }
 
   // --- Debug ---

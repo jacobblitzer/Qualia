@@ -36,6 +36,11 @@ uniform int uFieldCount;
 // Resolution of this render target
 uniform vec2 uResolution;
 
+// Opacity / visual controls
+uniform float uOpacityBoost;     // 0 = default glow, 1 = solid opaque surfaces
+uniform float uFresnelStrength;  // 0 = no rim, 1 = default, 2+ = extreme
+uniform float uLightMode;        // 0 = dark theme, 1 = light theme
+
 // Constants
 const int MAX_STEPS = 64;
 const float MAX_DIST = 500.0;
@@ -56,6 +61,39 @@ float smin(float a, float b, float k) {
     return mix(b, a, h) - k * h * (1.0 - h);
 }
 
+// ---- 3D Noise (Inigo Quilez value noise) ----
+
+float hash(vec3 p) {
+    p = fract(p * 0.3183099 + 0.1);
+    p *= 17.0;
+    return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+
+float noise3D(vec3 p) {
+    vec3 i = floor(p);
+    vec3 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f); // smoothstep
+
+    return mix(
+        mix(mix(hash(i + vec3(0,0,0)), hash(i + vec3(1,0,0)), f.x),
+            mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
+        mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x),
+            mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y),
+        f.z
+    );
+}
+
+float fbm(vec3 p) {
+    float value = 0.0;
+    float amplitude = 0.5;
+    for (int i = 0; i < 4; i++) {
+        value += amplitude * noise3D(p);
+        p *= 2.0;
+        amplitude *= 0.5;
+    }
+    return value;
+}
+
 // ---- Data Texture Access ----
 
 vec4 getNodeData(float index) {
@@ -65,13 +103,12 @@ vec4 getNodeData(float index) {
 }
 
 // ---- Scene SDF ----
-// Evaluates a specific field's SDF at point p.
-// Returns (distance, fieldIndex) packed as vec2.
 
 float fieldSDF(vec3 p, int fieldIdx) {
     float d = MAX_DIST;
     float radius = uFieldParams[fieldIdx].x;
     float k = uFieldParams[fieldIdx].y;
+    float noiseAmount = uFieldParams[fieldIdx].z;
 
     for (float i = 0.0; i < 256.0; i += 1.0) {
         if (i >= uNodeCount) break;
@@ -82,11 +119,17 @@ float fieldSDF(vec3 p, int fieldIdx) {
         float nodeDist = sdSphere(p - nodeData.xyz, radius);
         d = smin(d, nodeDist, k);
     }
+
+    // Surface noise displacement
+    if (noiseAmount > 0.001) {
+        float n = fbm(p * 0.15 + uTime * 0.05) * 2.0 - 1.0;
+        d += n * noiseAmount * radius * 0.4;
+    }
+
     return d;
 }
 
 // Combined scene: evaluate all fields, return closest
-// Also outputs the field color via the out parameter
 float sceneSDF(vec3 p, out vec3 hitColor, out float hitAlpha) {
     float minDist = MAX_DIST;
     hitColor = vec3(0.0);
@@ -99,7 +142,7 @@ float sceneSDF(vec3 p, out vec3 hitColor, out float hitAlpha) {
         if (d < minDist) {
             minDist = d;
             hitColor = uFieldColors[f].rgb;
-            hitAlpha = 1.0 - uFieldColors[f].a; // transparency → opacity
+            hitAlpha = 1.0 - uFieldColors[f].a; // transparency -> opacity
         }
     }
     return minDist;
@@ -191,26 +234,58 @@ void main() {
     if (hit) {
         vec3 normal = estimateNormal(hitPoint);
 
-        // Fresnel rim effect (stronger glow at glancing angles)
-        float fresnel = pow(1.0 - max(dot(normal, -rd), 0.0), 3.0);
+        // Fresnel rim effect — strength controllable
+        float fresnelPow = 2.0 + uFresnelStrength;
+        float fresnel = pow(1.0 - max(dot(normal, -rd), 0.0), fresnelPow);
 
-        // Contour lines (check fieldParams for the closest field)
-        // Simple contour: modulate brightness based on distance bands
+        // Contour lines — find which field we hit
         float contour = 1.0;
-        // (contour lines left for future refinement)
+        int hitFieldIdx = -1;
+        float minFieldDist = MAX_DIST;
+        for (int f = 0; f < 8; f++) {
+            if (f >= uFieldCount) break;
+            float fd = fieldSDF(hitPoint, f);
+            if (fd < minFieldDist) {
+                minFieldDist = fd;
+                hitFieldIdx = f;
+            }
+        }
 
-        // Bioluminescent surface shading
-        color = hitColor * (0.3 + fresnel * 0.7) * contour;
-        alpha = hitAlpha * (0.3 + fresnel * 0.6);
+        if (hitFieldIdx >= 0 && uFieldParams[hitFieldIdx].w > 0.5) {
+            float contourSpacing = uFieldParams[hitFieldIdx].x * 0.3;
+            float contourWidth = 0.15;
+            float contourDist = mod(length(hitPoint) + uTime * 0.3, contourSpacing);
+            float contourLine = smoothstep(contourWidth, contourWidth + 0.05, contourDist) *
+                               (1.0 - smoothstep(contourSpacing - contourWidth - 0.05, contourSpacing - contourWidth, contourDist));
+            contour = mix(0.4, 1.0, contourLine);
+        }
+
+        // Surface shading — boost base when going opaque
+        float baseShade = mix(0.3, 0.8, uOpacityBoost);
+        float fresnelShade = mix(0.7, 0.2, uOpacityBoost);
+        color = hitColor * (baseShade + fresnel * fresnelShade) * contour;
+
+        // Alpha — allow full opacity when boost is high
+        float baseAlpha = mix(0.3, 1.0, uOpacityBoost);
+        float fresnelAlpha = mix(0.6, 0.0, uOpacityBoost);
+        alpha = hitAlpha * (baseAlpha + fresnel * fresnelAlpha);
     }
 
-    // Add volumetric glow regardless of surface hit
-    color += glowColor * glowAccum * 3.0;
-    alpha = max(alpha, glowAccum * 0.8);
+    // Volumetric glow — reduce when going opaque
+    float glowStrength = mix(3.0, 0.5, uOpacityBoost);
+    color += glowColor * glowAccum * glowStrength;
+    float glowAlphaStrength = mix(0.8, 0.2, uOpacityBoost);
+    alpha = max(alpha, glowAccum * glowAlphaStrength);
 
     // Subtle pulsing
     float pulse = 0.92 + 0.08 * sin(uTime * 0.7);
     color *= pulse;
+
+    // Light mode: boost saturation and darken for contrast on light backgrounds
+    if (uLightMode > 0.5) {
+        color = pow(color, vec3(0.7));
+        color *= 1.3;
+    }
 
     gl_FragColor = vec4(color, alpha * uGlobalIntensity);
 }

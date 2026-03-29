@@ -12,8 +12,12 @@ export class NodeMesh {
   private _indexNodeMap = new Map<number, string>();
   private _dummy = new THREE.Object3D();
   private _colors: Float32Array;
+  private _scaleMultiplier = 1.0;
 
   get count(): number { return this.mesh.count; }
+
+  setScaleMultiplier(m: number): void { this._scaleMultiplier = m; }
+  getScaleMultiplier(): number { return this._scaleMultiplier; }
 
   constructor() {
     const geometry = new THREE.IcosahedronGeometry(0.5, 2);
@@ -59,7 +63,8 @@ export class NodeMesh {
       // Scale based on importance
       const importance = node.importance ?? 0.5;
       const baseRadius = nodeTypes[node.type]?.baseRadius ?? 0.5;
-      const scale = baseRadius * (1.5 + importance * 2.5);
+      const baseScale = baseRadius * (1.5 + importance * 2.5);
+      const scale = baseScale * this._scaleMultiplier;
       const isSelected = selectedIds.has(nodeId);
       const isHovered = hoveredId === nodeId;
 
@@ -88,6 +93,9 @@ export class NodeMesh {
     if (this.mesh.instanceColor) {
       (this.mesh.instanceColor as THREE.InstancedBufferAttribute).needsUpdate = true;
     }
+    // Recompute bounds so raycaster can hit instances
+    this.mesh.computeBoundingSphere();
+    this.mesh.computeBoundingBox();
   }
 
   /**

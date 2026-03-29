@@ -40,12 +40,15 @@ export class EdgeMesh {
 
   /**
    * Update edge geometry from edge data + node positions.
+   * selectedNodeIds highlights edges connected to selected nodes.
    */
   update(
     edges: Edge[],
     positions: Record<string, [number, number, number]>,
     edgeTypes: Record<string, EdgeTypeDefinition>,
     opacity: number = 0.6,
+    selectedNodeIds?: Set<string>,
+    selectedEdgeIds?: Set<string>,
   ): void {
     const posArr = this._positionAttr.array as Float32Array;
     const colArr = this._colorAttr.array as Float32Array;
@@ -63,10 +66,24 @@ export class EdgeMesh {
       posArr[i] = sp[0]; posArr[i + 1] = sp[1]; posArr[i + 2] = sp[2];
       posArr[i + 3] = tp[0]; posArr[i + 4] = tp[1]; posArr[i + 5] = tp[2];
 
+      // Highlight: directly selected edge, or connected to selected node
+      const isSelected = selectedEdgeIds && selectedEdgeIds.has(edge.id);
+      const isConnected = selectedNodeIds
+        && (selectedNodeIds.has(edge.source) || selectedNodeIds.has(edge.target));
+
       const typeColor = edgeTypes[edge.type]?.color ?? '#336699';
       const color = new THREE.Color(typeColor);
       const confidence = edge.confidence ?? 1;
       color.multiplyScalar(confidence);
+
+      if (isSelected) {
+        // Bright accent for directly selected edge
+        color.set('#4ff0c1');
+        color.multiplyScalar(2.0);
+      } else if (isConnected) {
+        color.lerp(new THREE.Color('#4ff0c1'), 0.5);
+        color.multiplyScalar(1.8);
+      }
 
       colArr[i] = color.r; colArr[i + 1] = color.g; colArr[i + 2] = color.b;
       colArr[i + 3] = color.r; colArr[i + 4] = color.g; colArr[i + 5] = color.b;

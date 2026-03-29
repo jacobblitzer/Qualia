@@ -66,6 +66,9 @@ export class SDFPass {
         uFieldParams: { value: fieldParams },
         uFieldCount: { value: 0 },
         uResolution: { value: new THREE.Vector2(rtW, rtH) },
+        uOpacityBoost: { value: 0.0 },
+        uFresnelStrength: { value: 1.0 },
+        uLightMode: { value: 0.0 },
       },
       transparent: true,
       depthTest: false,
@@ -186,6 +189,34 @@ export class SDFPass {
 
   getIntensity(): number {
     return this._material.uniforms.uGlobalIntensity.value as number;
+  }
+
+  setOpacityBoost(boost: number): void {
+    this._material.uniforms.uOpacityBoost.value = Math.max(0, Math.min(1, boost));
+  }
+
+  getOpacityBoost(): number {
+    return this._material.uniforms.uOpacityBoost.value as number;
+  }
+
+  setFresnelStrength(strength: number): void {
+    this._material.uniforms.uFresnelStrength.value = Math.max(0, Math.min(3, strength));
+  }
+
+  getFresnelStrength(): number {
+    return this._material.uniforms.uFresnelStrength.value as number;
+  }
+
+  setLightMode(isLight: boolean): void {
+    this._material.uniforms.uLightMode.value = isLight ? 1.0 : 0.0;
+  }
+
+  setResDivisor(divisor: number): void {
+    this._resDivisor = Math.max(1, Math.round(divisor));
+  }
+
+  getResDivisor(): number {
+    return this._resDivisor;
   }
 
   dispose(): void {

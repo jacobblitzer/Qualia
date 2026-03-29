@@ -15,6 +15,8 @@ export function useKeyboard(
     onToggleSuperposition: () => void;
     onToggleDebug?: () => void;
     onFitToView?: () => void;
+    onResetCamera?: () => void;
+    onDisplayMode?: (index: number) => void;
   },
 ): void {
   useEffect(() => {
@@ -88,9 +90,21 @@ export function useKeyboard(
         return;
       }
 
+      // Home — Reset camera
+      if (e.key === 'Home') {
+        callbacks.onResetCamera?.();
+        return;
+      }
+
       // F — Focus selected node
       if (e.key === 'f' || e.key === 'F') {
         // Handled by renderer via callback
+        return;
+      }
+
+      // 1-6 — Display modes
+      if (!ctrl && e.key >= '1' && e.key <= '6') {
+        callbacks.onDisplayMode?.(parseInt(e.key) - 1);
         return;
       }
 

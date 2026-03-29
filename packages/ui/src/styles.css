@@ -216,7 +216,7 @@ button.btn-danger {
   font-size: 11px;
   color: var(--text-secondary);
   letter-spacing: 0.5px;
-  z-index: 15;
+  z-index: 25;
   pointer-events: none;
   transition: all var(--transition-med);
 }
@@ -688,6 +688,218 @@ button.btn-danger {
   background: var(--danger);
   margin-left: 4px;
   animation: rec-pulse 1.2s ease-in-out infinite;
+}
+
+/* ============================================================================
+   Viewport Toolbar (floating inside viewport)
+   ============================================================================ */
+
+.viewport-toolbar {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--bg-frosted);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  z-index: 30;
+}
+
+.viewport-toolbar button {
+  padding: 3px 8px;
+  font-size: 10px;
+  border-radius: 12px;
+}
+
+.viewport-toolbar .toolbar-separator {
+  width: 1px;
+  height: 16px;
+  background: var(--border-light);
+  margin: 0 2px;
+}
+
+/* ============================================================================
+   SDF Settings Panel (floating inside viewport)
+   ============================================================================ */
+
+.sdf-settings-panel {
+  position: absolute;
+  bottom: 52px;
+  right: 12px;
+  width: 260px;
+  background: var(--bg-frosted);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  z-index: 31;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.sdf-settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-accent);
+}
+
+.sdf-settings-close {
+  background: none !important;
+  border: none !important;
+  font-size: 16px !important;
+  padding: 0 4px !important;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.sdf-settings-close:hover {
+  color: var(--text-primary);
+}
+
+.sdf-settings-body {
+  padding: 6px 10px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.sdf-settings-section {
+  margin-bottom: 8px;
+}
+
+.sdf-settings-section h4 {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.sdf-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.sdf-setting-row label {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--text-secondary);
+  min-width: 55px;
+}
+
+.sdf-setting-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+
+.sdf-setting-control input[type="range"] {
+  -webkit-appearance: none;
+  flex: 1;
+  height: 3px;
+  background: var(--bg-elevated);
+  border-radius: 2px;
+  outline: none;
+}
+
+.sdf-setting-control input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+
+.sdf-setting-value {
+  font-size: 9px;
+  color: var(--text-muted);
+  min-width: 36px;
+  text-align: right;
+}
+
+.sdf-res-select {
+  flex: 1;
+  padding: 2px 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  outline: none;
+}
+
+.sdf-res-select:focus {
+  border-color: var(--accent-dim);
+}
+
+/* ============================================================================
+   Display Mode Dropdown
+   ============================================================================ */
+
+.display-mode-container {
+  position: relative;
+}
+
+.display-mode-dropdown {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  background: var(--bg-frosted);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  min-width: 140px;
+  z-index: 32;
+}
+
+.display-mode-dropdown button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 8px;
+  font-size: 10px;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  justify-content: flex-start;
+}
+
+.display-mode-dropdown .mode-shortcut {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  background: var(--bg-active);
+  color: var(--text-muted);
+  font-size: 9px;
+  flex-shrink: 0;
 }
 
 /* Scrollbar styling */

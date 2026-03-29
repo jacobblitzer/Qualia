@@ -159,6 +159,10 @@ export class EventStore {
     this.dispatch({ type: 'SELECTION_SET', payload: { nodeIds } });
   }
 
+  selectEdge(edgeId: string): void {
+    this.dispatch({ type: 'SELECTION_SET', payload: { nodeIds: [], edgeIds: [edgeId] } });
+  }
+
   clearSelection(): void {
     this.dispatch({ type: 'SELECTION_CLEAR', payload: {} });
   }

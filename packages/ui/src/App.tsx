@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { EventStore, importGraph, exportQualiaJSON, LayoutEngine } from '@qualia/core';
+import { DISPLAY_MODES } from '@qualia/renderer';
 import { StoreContext } from './StoreContext';
 import { DebugProvider, useDebug } from './DebugContext';
 import { Viewport } from './Viewport';
@@ -143,6 +144,17 @@ function AppInner() {
     renderer?.fitToView(0.6);
   }, [renderer]);
 
+  const handleResetCamera = useCallback(() => {
+    renderer?.resetCamera(0.6);
+  }, [renderer]);
+
+  const handleDisplayMode = useCallback((index: number) => {
+    const mode = DISPLAY_MODES[index];
+    if (mode && renderer) {
+      renderer.applyDisplayMode(mode.settings);
+    }
+  }, [renderer]);
+
   const keyboardCallbacks = useMemo(() => ({
     onToggleConsole: () => setConsoleOpen(v => !v),
     onImport: handleImport,
@@ -151,7 +163,9 @@ function AppInner() {
     onToggleSuperposition: toggleSuperposition,
     onToggleDebug: toggleDebug,
     onFitToView: handleFitToView,
-  }), [handleImport, handleExport, cycleContext, toggleSuperposition, toggleDebug, handleFitToView]);
+    onResetCamera: handleResetCamera,
+    onDisplayMode: handleDisplayMode,
+  }), [handleImport, handleExport, cycleContext, toggleSuperposition, toggleDebug, handleFitToView, handleResetCamera, handleDisplayMode]);
 
   useKeyboard(store, keyboardCallbacks);
 
@@ -170,7 +184,7 @@ function AppInner() {
   return (
     <StoreContext.Provider value={store}>
       <div className="qualia-app">
-        <Toolbar onImport={handleImport} onExport={handleExport} onFitToView={handleFitToView} />
+        <Toolbar onImport={handleImport} onExport={handleExport} />
         <div className="qualia-main">
           <Sidebar />
           <Viewport />

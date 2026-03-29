@@ -5,10 +5,9 @@ import { useDebug } from './DebugContext';
 interface ToolbarProps {
   onImport: () => void;
   onExport: () => void;
-  onFitToView: () => void;
 }
 
-export function Toolbar({ onImport, onExport, onFitToView }: ToolbarProps) {
+export function Toolbar({ onImport, onExport }: ToolbarProps) {
   const store = useStore();
   const version = useStoreVersion();
   const { debugEnabled, toggleDebug, activeSession } = useDebug();
@@ -40,10 +39,6 @@ export function Toolbar({ onImport, onExport, onFitToView }: ToolbarProps) {
           Redo
         </button>
       </div>
-
-      <div className="toolbar-separator" />
-
-      <button onClick={onFitToView} title="Zoom All (A)">Zoom All</button>
 
       <div className="toolbar-spacer" />
 

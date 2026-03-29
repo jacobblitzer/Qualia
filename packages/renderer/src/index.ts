@@ -6,3 +6,6 @@ export { EdgeMesh } from './EdgeMesh';
 export { LabelLayer } from './LabelLayer';
 export { ContextTransition } from './ContextTransition';
 export { InteractionManager } from './InteractionManager';
+export { Gumball } from './Gumball';
+export { DISPLAY_MODES } from './displayModes';
+export type { DisplayMode, DisplayModeSettings } from './displayModes';

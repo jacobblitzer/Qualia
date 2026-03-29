@@ -1,18 +1,21 @@
-// Composites the SDF render (at 1/4 resolution) onto the main scene.
-// Uses additive blending for the bioluminescent glow effect.
+// Composites the SDF render onto the main scene.
+// Supports additive (glow) and alpha blend (opaque) modes.
 
 precision highp float;
 
 varying vec2 vUv;
 uniform sampler2D uSceneTexture;
 uniform sampler2D uSDFTexture;
+uniform float uBlendMode; // 0.0 = additive (glow), 1.0 = alpha blend (opaque)
 
 void main() {
     vec4 scene = texture2D(uSceneTexture, vUv);
     vec4 sdf = texture2D(uSDFTexture, vUv);
 
-    // Additive blend: SDF glow adds light on top of scene
-    vec3 color = scene.rgb + sdf.rgb * sdf.a;
+    // Smoothly interpolate between additive and alpha blend
+    vec3 additive = scene.rgb + sdf.rgb * sdf.a;
+    vec3 alphaBlend = mix(scene.rgb, sdf.rgb, sdf.a);
+    vec3 color = mix(additive, alphaBlend, uBlendMode);
 
     gl_FragColor = vec4(color, 1.0);
 }
