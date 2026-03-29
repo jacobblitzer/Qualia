@@ -38,7 +38,7 @@ uniform vec2 uResolution;
 
 // Constants
 const int MAX_STEPS = 64;
-const float MAX_DIST = 200.0;
+const float MAX_DIST = 500.0;
 const float EPSILON = 0.02;
 const float NORMAL_EPS = 0.005;
 

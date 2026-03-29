@@ -579,6 +579,117 @@ button.btn-danger {
   font-size: 10px;
 }
 
+/* ============================================================================
+   Debug Overlay
+   ============================================================================ */
+
+.debug-overlay {
+  position: fixed;
+  top: calc(var(--toolbar-height) + 8px);
+  right: calc(var(--panel-width) + 8px);
+  width: 220px;
+  background: rgba(10, 12, 16, 0.92);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  z-index: 60;
+  pointer-events: none;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.debug-overlay-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--accent);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.debug-overlay-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.debug-overlay-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+.debug-overlay-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1px 0;
+}
+
+.debug-overlay-label {
+  color: var(--text-muted);
+}
+
+.debug-overlay-value {
+  color: var(--text-primary);
+  text-align: right;
+}
+
+.debug-toggle {
+  font-size: 10px !important;
+  padding: 3px 8px !important;
+}
+
+.debug-toggle.active {
+  color: var(--accent) !important;
+  border-color: var(--accent-dim) !important;
+  background: var(--accent-glow) !important;
+  box-shadow: 0 0 6px rgba(79, 240, 193, 0.2);
+}
+
+/* ============================================================================
+   Recording Indicator
+   ============================================================================ */
+
+@keyframes rec-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.debug-rec-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  color: var(--danger);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.debug-rec-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--danger);
+  animation: rec-pulse 1.2s ease-in-out infinite;
+}
+
+.toolbar-rec-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--danger);
+  margin-left: 4px;
+  animation: rec-pulse 1.2s ease-in-out infinite;
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;

@@ -1,14 +1,17 @@
 import React from 'react';
 import { useStore, useStoreVersion } from './StoreContext';
+import { useDebug } from './DebugContext';
 
 interface ToolbarProps {
   onImport: () => void;
   onExport: () => void;
+  onFitToView: () => void;
 }
 
-export function Toolbar({ onImport, onExport }: ToolbarProps) {
+export function Toolbar({ onImport, onExport, onFitToView }: ToolbarProps) {
   const store = useStore();
   const version = useStoreVersion();
+  const { debugEnabled, toggleDebug, activeSession } = useDebug();
 
   return (
     <div className="qualia-toolbar">
@@ -38,7 +41,19 @@ export function Toolbar({ onImport, onExport }: ToolbarProps) {
         </button>
       </div>
 
+      <div className="toolbar-separator" />
+
+      <button onClick={onFitToView} title="Zoom All (A)">Zoom All</button>
+
       <div className="toolbar-spacer" />
+
+      <button
+        className={debugEnabled ? 'active debug-toggle' : 'debug-toggle'}
+        onClick={toggleDebug}
+        title="Toggle Debug Mode (Ctrl+Shift+D)"
+      >
+        Debug{activeSession && <span className="toolbar-rec-dot" />}
+      </button>
 
       <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)' }}>
         {store.state.nodes.size} nodes

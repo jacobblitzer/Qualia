@@ -13,14 +13,16 @@ export class NodeMesh {
   private _dummy = new THREE.Object3D();
   private _colors: Float32Array;
 
+  get count(): number { return this.mesh.count; }
+
   constructor() {
     const geometry = new THREE.IcosahedronGeometry(0.5, 2);
     const material = new THREE.MeshStandardMaterial({
       color: 0xffffff,
-      roughness: 0.35,
-      metalness: 0.1,
-      emissive: 0x112233,
-      emissiveIntensity: 0.15,
+      roughness: 0.3,
+      metalness: 0.15,
+      emissive: 0x224466,
+      emissiveIntensity: 0.4,
     });
 
     this.mesh = new THREE.InstancedMesh(geometry, material, MAX_INSTANCES);
@@ -57,7 +59,7 @@ export class NodeMesh {
       // Scale based on importance
       const importance = node.importance ?? 0.5;
       const baseRadius = nodeTypes[node.type]?.baseRadius ?? 0.5;
-      const scale = baseRadius * (0.6 + importance * 0.8);
+      const scale = baseRadius * (1.5 + importance * 2.5);
       const isSelected = selectedIds.has(nodeId);
       const isHovered = hoveredId === nodeId;
 

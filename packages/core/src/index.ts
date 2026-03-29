@@ -24,3 +24,11 @@ export { importGraph, exportQualiaJSON, exportObsidianCanvas, exportCSV } from '
 
 // Analytics
 export { degreeCentrality, connectedComponents, betweennessCentrality, pageRank, modularityDetection } from './analytics';
+
+// Debug
+export { DebugCollector } from './DebugCollector';
+export type { FrameTelemetry, ConsoleEntry, DebugSnapshot, DebugBundle } from './DebugCollector';
+
+// Debug Recorder
+export { DebugRecorder } from './DebugRecorder';
+export type { RecorderConfig, DebugCapture, RecorderListener } from './DebugRecorder';

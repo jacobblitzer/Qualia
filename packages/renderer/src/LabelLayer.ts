@@ -54,11 +54,11 @@ export class LabelLayer {
       const x = (this._tempVec.x * 0.5 + 0.5) * containerWidth;
       const y = (-this._tempVec.y * 0.5 + 0.5) * containerHeight;
 
-      // Only show labels for selected/hovered nodes, or if zoomed in close
+      // Show labels for all nodes within reasonable distance
       const distToCamera = camera.position.distanceTo(new THREE.Vector3(pos[0], pos[1], pos[2]));
       const isSelected = selectedIds.has(nodeId);
       const isHovered = hoveredId === nodeId;
-      const showLabel = isSelected || isHovered || distToCamera < 30;
+      const showLabel = isSelected || isHovered || distToCamera < 200;
 
       if (!showLabel) continue;
 

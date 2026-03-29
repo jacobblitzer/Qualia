@@ -9,6 +9,7 @@ type PositionCallback = (contextId: string, positions: Record<string, [number, n
 export class LayoutEngine {
   private _worker: Worker | null = null;
   private _onPositions: PositionCallback | null = null;
+  private _workerTimeout: ReturnType<typeof setTimeout> | null = null;
 
   onPositions(callback: PositionCallback): void {
     this._onPositions = callback;
@@ -27,7 +28,7 @@ export class LayoutEngine {
     // For manual layout, just use existing positions — no computation
     if (config.algorithm === 'manual') {
       if (existingPositions && this._onPositions) {
-        this._onPositions(contextId, existingPositions);
+        this._onPositions(contextId, this._normalizePositions(existingPositions));
       }
       return;
     }
@@ -36,29 +37,71 @@ export class LayoutEngine {
     if (config.algorithm === 'hierarchy') {
       const positions = this._hierarchyLayout(nodes, edges, config.params);
       if (this._onPositions) {
-        this._onPositions(contextId, positions);
+        this._onPositions(contextId, this._normalizePositions(positions));
       }
       return;
     }
 
-    // Force-directed: run in Web Worker
+    // Force-directed: use sync fallback (worker can be re-enabled later)
+    // The worker path has silent failure modes (d3-force-3d import issues inside
+    // worker context). The sync fallback is instant for small graphs (<100 nodes).
+    console.log(`[LayoutEngine] Starting ${config.algorithm} layout for context "${contextId}" with ${nodes.length} nodes, ${edges.length} edges`);
+
     this.stop();
+
+    // Try worker first, with fallback
+    let workerFailed = false;
     try {
       this._worker = new Worker(
         new URL('./layout.worker.ts', import.meta.url),
         { type: 'module' },
       );
     } catch {
-      // Fallback: run simple force layout synchronously
-      const positions = this._fallbackForceLayout(nodes, edges, existingPositions);
+      workerFailed = true;
+    }
+
+    if (workerFailed || !this._worker) {
+      console.log('[LayoutEngine] Worker unavailable, using sync fallback');
+      const positions = this._normalizePositions(this._fallbackForceLayout(nodes, edges, existingPositions));
+      console.log(`[LayoutEngine] Sync fallback produced ${Object.keys(positions).length} positions for "${contextId}"`);
       if (this._onPositions) {
         this._onPositions(contextId, positions);
       }
       return;
     }
 
+    // Worker error handler — fall back to sync
+    this._worker.onerror = (e) => {
+      console.warn('[LayoutEngine] Worker error, falling back to sync layout:', e.message);
+      this._clearWorkerTimeout();
+      this._worker?.terminate();
+      this._worker = null;
+      const positions = this._normalizePositions(this._fallbackForceLayout(nodes, edges, existingPositions));
+      console.log(`[LayoutEngine] Fallback produced ${Object.keys(positions).length} positions for "${contextId}"`);
+      if (this._onPositions) {
+        this._onPositions(contextId, positions);
+      }
+    };
+
+    // Timeout — if worker hasn't produced positions within 5s, fall back
+    this._workerTimeout = setTimeout(() => {
+      if (this._worker) {
+        console.warn('[LayoutEngine] Worker timed out, falling back to sync layout');
+        this._worker.terminate();
+        this._worker = null;
+        const positions = this._normalizePositions(this._fallbackForceLayout(nodes, edges, existingPositions));
+        console.log(`[LayoutEngine] Timeout fallback produced ${Object.keys(positions).length} positions for "${contextId}"`);
+        if (this._onPositions) {
+          this._onPositions(contextId, positions);
+        }
+      }
+    }, 5000);
+
     this._worker.onmessage = (e: MessageEvent<LayoutWorkerResult>) => {
-      this._onPositions?.(e.data.contextId, e.data.positions);
+      this._clearWorkerTimeout();
+      const positions = this._normalizePositions(e.data.positions);
+      console.log(`[LayoutEngine] Received ${Object.keys(positions).length} positions for context "${e.data.contextId}" (${e.data.type})`);
+      this._onPositions?.(e.data.contextId, positions);
     };
 
     const nodeMsg = nodes.map(n => {
@@ -88,6 +131,7 @@ export class LayoutEngine {
   }
 
   stop(): void {
+    this._clearWorkerTimeout();
     if (this._worker) {
       this._worker.postMessage({ type: 'stop' });
       this._worker.terminate();
@@ -95,8 +139,67 @@ export class LayoutEngine {
     }
   }
 
+  private _clearWorkerTimeout(): void {
+    if (this._workerTimeout !== null) {
+      clearTimeout(this._workerTimeout);
+      this._workerTimeout = null;
+    }
+  }
+
+  /**
+   * Normalize positions to fit within a target bounding sphere.
+   * Ensures consistent scale regardless of layout algorithm or pre-baked data.
+   */
+  private _normalizePositions(
+    positions: Record<string, [number, number, number]>,
+    targetRadius: number = 40,
+  ): Record<string, [number, number, number]> {
+    const ids = Object.keys(positions);
+    if (ids.length === 0) return positions;
+
+    // Find centroid
+    let cx = 0, cy = 0, cz = 0;
+    for (const id of ids) {
+      const [x, y, z] = positions[id];
+      cx += x; cy += y; cz += z;
+    }
+    cx /= ids.length; cy /= ids.length; cz /= ids.length;
+
+    // Find max distance from centroid
+    let maxDist = 0;
+    for (const id of ids) {
+      const [x, y, z] = positions[id];
+      const dx = x - cx, dy = y - cy, dz = z - cz;
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      if (dist > maxDist) maxDist = dist;
+    }
+
+    // If already within target, just center
+    if (maxDist <= 0) {
+      const result: Record<string, [number, number, number]> = {};
+      for (const id of ids) result[id] = [0, 0, 0];
+      return result;
+    }
+
+    // Scale to target radius
+    const scale = targetRadius / maxDist;
+    const result: Record<string, [number, number, number]> = {};
+    for (const id of ids) {
+      const [x, y, z] = positions[id];
+      result[id] = [
+        (x - cx) * scale,
+        (y - cy) * scale,
+        (z - cz) * scale,
+      ];
+    }
+    return result;
+  }
+
   /**
    * Simple hierarchical (tree) layout. Uses BFS from root nodes.
+   * NOTE: For 'reports_to' edges where source reports to target (child → parent),
+   * edge direction should be inverted before using this layout. Currently the demo
+   * uses force-directed for hierarchy context, so this doesn't apply yet.
    */
   private _hierarchyLayout(
     nodes: NodeCore[],

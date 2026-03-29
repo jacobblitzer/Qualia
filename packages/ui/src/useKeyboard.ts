@@ -13,6 +13,8 @@ export function useKeyboard(
     onExport: () => void;
     onCycleContext: () => void;
     onToggleSuperposition: () => void;
+    onToggleDebug?: () => void;
+    onFitToView?: () => void;
   },
 ): void {
   useEffect(() => {
@@ -22,6 +24,13 @@ export function useKeyboard(
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
       const ctrl = e.ctrlKey || e.metaKey;
+
+      // Ctrl+Shift+D — Toggle debug
+      if (ctrl && e.shiftKey && (e.key === 'd' || e.key === 'D')) {
+        e.preventDefault();
+        callbacks.onToggleDebug?.();
+        return;
+      }
 
       // Ctrl+Z — Undo
       if (ctrl && e.key === 'z' && !e.shiftKey) {
@@ -70,6 +79,12 @@ export function useKeyboard(
       if (e.key === '`') {
         e.preventDefault();
         callbacks.onToggleConsole();
+        return;
+      }
+
+      // A — Fit to view / Zoom All
+      if (e.key === 'a' || e.key === 'A') {
+        callbacks.onFitToView?.();
         return;
       }
 

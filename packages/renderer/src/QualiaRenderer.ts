@@ -88,6 +88,24 @@ export class QualiaRenderer {
     this._scene.camera.position.set(0, 10, 50);
   }
 
+  fitToView(duration?: number): void {
+    this._scene.fitToView(duration);
+  }
+
+  // --- Debug ---
+
+  getDebugStats() {
+    return this._scene.getDebugStats();
+  }
+
+  getCanvas(): HTMLCanvasElement {
+    return this._canvas;
+  }
+
+  getSceneManager(): SceneManager {
+    return this._scene;
+  }
+
   // --- Lifecycle ---
 
   resize(): void {

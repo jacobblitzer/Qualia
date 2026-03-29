@@ -171,6 +171,23 @@ export class SDFPass {
     this._material.uniforms.uResolution.value.set(rtW, rtH);
   }
 
+  getNodeCount(): number {
+    return this._material.uniforms.uNodeCount.value as number;
+  }
+
+  getFieldCount(): number {
+    return this._material.uniforms.uFieldCount.value as number;
+  }
+
+  getResolution(): [number, number] {
+    const v = this._material.uniforms.uResolution.value as THREE.Vector2;
+    return [v.x, v.y];
+  }
+
+  getIntensity(): number {
+    return this._material.uniforms.uGlobalIntensity.value as number;
+  }
+
   dispose(): void {
     this._material.dispose();
     this._renderTarget.dispose();

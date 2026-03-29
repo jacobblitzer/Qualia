@@ -2,9 +2,10 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import glsl from 'vite-plugin-glsl';
 import path from 'node:path';
+import { debugWriterPlugin } from './vite-plugin-debug-writer';
 
 export default defineConfig({
-  plugins: [react(), glsl()],
+  plugins: [react(), glsl(), debugWriterPlugin()],
   resolve: {
     alias: {
       '@qualia/core': path.resolve(__dirname, 'packages/core/src'),

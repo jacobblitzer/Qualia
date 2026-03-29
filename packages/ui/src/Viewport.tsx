@@ -1,10 +1,12 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useStore, useStoreVersion } from './StoreContext';
+import { useDebug } from './DebugContext';
 import { QualiaRenderer } from '@qualia/renderer';
 
 export function Viewport() {
   const containerRef = useRef<HTMLDivElement>(null);
   const store = useStore();
+  const { setRenderer: setDebugRenderer } = useDebug();
   const [renderer, setRenderer] = useState<QualiaRenderer | null>(null);
 
   useEffect(() => {
@@ -21,11 +23,22 @@ export function Viewport() {
     });
 
     setRenderer(r);
+    setDebugRenderer(r);
     return () => {
       r.dispose();
       setRenderer(null);
+      setDebugRenderer(null);
     };
-  }, [store]);
+  }, [store, setDebugRenderer]);
+
+  // Auto-fit on initial load (catches pre-baked positions)
+  useEffect(() => {
+    if (!renderer) return;
+    const timer = setTimeout(() => {
+      renderer.fitToView(0.8);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [renderer]);
 
   // Lens indicator
   const version = useStoreVersion();

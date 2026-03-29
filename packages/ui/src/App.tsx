@@ -1,32 +1,56 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { EventStore, importGraph, exportQualiaJSON, LayoutEngine } from '@qualia/core';
 import { StoreContext } from './StoreContext';
+import { DebugProvider, useDebug } from './DebugContext';
 import { Viewport } from './Viewport';
 import { Toolbar } from './Toolbar';
 import { Sidebar } from './Sidebar';
 import { PropertiesPanel } from './PropertiesPanel';
 import { ContextSwitcher } from './ContextSwitcher';
 import { Console } from './Console';
+import { DebugOverlay } from './DebugOverlay';
 import { DropZone } from './DropZone';
 import { StatusBar } from './StatusBar';
 import { useKeyboard } from './useKeyboard';
 import './styles.css';
 
 export function App() {
+  return (
+    <DebugProvider>
+      <AppInner />
+    </DebugProvider>
+  );
+}
+
+function AppInner() {
   const [store] = useState(() => new EventStore());
   const [layout] = useState(() => new LayoutEngine());
   const [consoleOpen, setConsoleOpen] = useState(false);
   const [, setVersion] = useState(0);
+  const { toggleDebug, setStore, renderer } = useDebug();
+
+  // Pass store to debug context for recorder
+  useEffect(() => {
+    setStore(store);
+  }, [store, setStore]);
 
   // Re-render on store changes
   useEffect(() => {
     return store.subscribe(() => setVersion(v => v + 1));
   }, [store]);
 
+  // Auto-fit flag: triggers fitToView after first layout positions arrive
+  const needsAutoFit = useRef(true);
+
   // Wire layout engine to store
   useEffect(() => {
     layout.onPositions((contextId, positions) => {
       store.applyLayoutPositions(contextId, positions);
+      // Auto-fit camera after first layout results
+      if (needsAutoFit.current && renderer && Object.keys(positions).length > 0) {
+        needsAutoFit.current = false;
+        setTimeout(() => renderer.fitToView(0.8), 100);
+      }
     });
 
     // Listen for layout run events
@@ -115,13 +139,19 @@ export function App() {
     }
   }, [store]);
 
+  const handleFitToView = useCallback(() => {
+    renderer?.fitToView(0.6);
+  }, [renderer]);
+
   const keyboardCallbacks = useMemo(() => ({
     onToggleConsole: () => setConsoleOpen(v => !v),
     onImport: handleImport,
     onExport: handleExport,
     onCycleContext: cycleContext,
     onToggleSuperposition: toggleSuperposition,
-  }), [handleImport, handleExport, cycleContext, toggleSuperposition]);
+    onToggleDebug: toggleDebug,
+    onFitToView: handleFitToView,
+  }), [handleImport, handleExport, cycleContext, toggleSuperposition, toggleDebug, handleFitToView]);
 
   useKeyboard(store, keyboardCallbacks);
 
@@ -140,7 +170,7 @@ export function App() {
   return (
     <StoreContext.Provider value={store}>
       <div className="qualia-app">
-        <Toolbar onImport={handleImport} onExport={handleExport} />
+        <Toolbar onImport={handleImport} onExport={handleExport} onFitToView={handleFitToView} />
         <div className="qualia-main">
           <Sidebar />
           <Viewport />
@@ -150,6 +180,7 @@ export function App() {
         <StatusBar />
         <DropZone onDrop={handleDrop} />
         <Console isOpen={consoleOpen} />
+        <DebugOverlay />
       </div>
     </StoreContext.Provider>
   );

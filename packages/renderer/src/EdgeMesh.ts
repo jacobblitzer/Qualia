@@ -10,6 +10,9 @@ export class EdgeMesh {
   readonly lineSegments: THREE.LineSegments;
   private _positionAttr: THREE.BufferAttribute;
   private _colorAttr: THREE.BufferAttribute;
+  private _count = 0;
+
+  get count(): number { return this._count; }
 
   constructor() {
     const geometry = new THREE.BufferGeometry();
@@ -71,6 +74,7 @@ export class EdgeMesh {
       count++;
     }
 
+    this._count = count;
     this._positionAttr.needsUpdate = true;
     this._colorAttr.needsUpdate = true;
     this.lineSegments.geometry.setDrawRange(0, count * 2);
