@@ -16,10 +16,14 @@ interface Settings {
   nodeScale: number;
   emissiveIntensity: number;
   edgeOpacity: number;
+  edgeWidth: number;
   ambientIntensity: number;
   fogDensity: number;
   fov: number;
   farPlane: number;
+  noiseEnabled: boolean;
+  noiseGlobal: number;
+  contoursEnabled: boolean;
 }
 
 function Slider({ label, value, min, max, step, onChange, leftLabel, rightLabel }: {
@@ -67,16 +71,30 @@ export function SDFSettingsPanel({ renderer, onClose }: SDFSettingsPanelProps) {
       nodeScale: s.nodeScale,
       emissiveIntensity: s.emissiveIntensity,
       edgeOpacity: s.edgeOpacity,
+      edgeWidth: s.edgeWidth,
       ambientIntensity: s.ambientIntensity,
       fogDensity: s.fogDensity,
       fov: s.fov,
       farPlane: s.farPlane,
+      noiseEnabled: false,
+      noiseGlobal: 0.5,
+      contoursEnabled: false,
     };
   });
 
-  const update = useCallback((key: keyof Settings, value: number | string) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
-    renderer.applyViewerSettings({ [key]: value });
+  const update = useCallback((key: keyof Settings, value: number | string | boolean) => {
+    setSettings(prev => {
+      const next = { ...prev, [key]: value };
+      // For noise, send both enabled and global together
+      if (key === 'noiseEnabled' || key === 'noiseGlobal') {
+        const enabled = key === 'noiseEnabled' ? value as boolean : prev.noiseEnabled;
+        const global = key === 'noiseGlobal' ? value as number : prev.noiseGlobal;
+        renderer.applyViewerSettings({ noiseEnabled: enabled, noiseGlobal: global });
+      } else {
+        renderer.applyViewerSettings({ [key]: value });
+      }
+      return next;
+    });
   }, [renderer]);
 
   return (
@@ -99,8 +117,9 @@ export function SDFSettingsPanel({ renderer, onClose }: SDFSettingsPanelProps) {
               <select
                 className="sdf-res-select"
                 value={settings.sdfResDivisor}
-                onChange={(e) => update('sdfResDivisor', parseInt(e.target.value))}
+                onChange={(e) => update('sdfResDivisor', parseFloat(e.target.value))}
               >
+                <option value={0.5}>Super (2x)</option>
                 <option value={1}>Full (1x)</option>
                 <option value={2}>Half (1/2)</option>
                 <option value={4}>Quarter (1/4)</option>
@@ -124,6 +143,40 @@ export function SDFSettingsPanel({ renderer, onClose }: SDFSettingsPanelProps) {
         </div>
 
         <div className="sdf-settings-section">
+          <h4>SDF Effects</h4>
+          <div className="sdf-setting-row">
+            <label>Noise</label>
+            <div className="sdf-setting-control">
+              <input
+                type="checkbox"
+                checked={settings.noiseEnabled}
+                onChange={(e) => update('noiseEnabled', e.target.checked)}
+              />
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={settings.noiseGlobal}
+                disabled={!settings.noiseEnabled}
+                onChange={(e) => update('noiseGlobal', parseFloat(e.target.value))}
+              />
+              <span className="sdf-setting-value">{settings.noiseGlobal.toFixed(2)}</span>
+            </div>
+          </div>
+          <div className="sdf-setting-row">
+            <label>Contours</label>
+            <div className="sdf-setting-control">
+              <input
+                type="checkbox"
+                checked={settings.contoursEnabled}
+                onChange={(e) => update('contoursEnabled', e.target.checked)}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="sdf-settings-section">
           <h4>Nodes</h4>
           <Slider label="Scale" value={settings.nodeScale} min={0.1} max={5} step={0.1} onChange={v => update('nodeScale', v)} />
           <Slider label="Emissive" value={settings.emissiveIntensity} min={0} max={2} step={0.05} onChange={v => update('emissiveIntensity', v)} />
@@ -132,6 +185,7 @@ export function SDFSettingsPanel({ renderer, onClose }: SDFSettingsPanelProps) {
         <div className="sdf-settings-section">
           <h4>Edges</h4>
           <Slider label="Opacity" value={settings.edgeOpacity} min={0} max={1} step={0.05} onChange={v => update('edgeOpacity', v)} />
+          <Slider label="Width" value={settings.edgeWidth} min={0.5} max={8} step={0.5} onChange={v => update('edgeWidth', v)} />
         </div>
 
         <div className="sdf-settings-section">

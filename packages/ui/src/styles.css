@@ -842,6 +842,16 @@ button.btn-danger {
   flex-shrink: 0;
 }
 
+.sdf-setting-control input[type="checkbox"] {
+  accent-color: var(--accent);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.sdf-setting-control input[type="range"]:disabled {
+  opacity: 0.3;
+}
+
 .sdf-res-select {
   flex: 1;
   padding: 2px 4px;

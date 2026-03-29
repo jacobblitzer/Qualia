@@ -71,6 +71,15 @@ export class SceneManager {
     roughness: 0.3,
   };
 
+  // Saved state before entering light mode (for restore)
+  private _savedDarkState: {
+    ambientIntensity: number;
+    dirIntensity: number;
+    emissiveIntensity: number;
+    roughness: number;
+    fogDensity: number;
+  } | null = null;
+
   constructor(container: HTMLElement, canvas: HTMLCanvasElement, store: EventStore) {
     this._store = store;
     this._container = container;
@@ -506,34 +515,50 @@ export class SceneManager {
   }
 
   setLightMode(isLight: boolean): void {
+    const nodeMat = this.nodeMesh.mesh.material as THREE.MeshStandardMaterial;
+
+    if (isLight && !this._isLightMode) {
+      // Save current state before switching to light
+      this._savedDarkState = {
+        ambientIntensity: this._ambientLight.intensity,
+        dirIntensity: this._dirLight.intensity,
+        emissiveIntensity: nodeMat.emissiveIntensity,
+        roughness: nodeMat.roughness,
+        fogDensity: (this.scene.fog as THREE.FogExp2).density,
+      };
+    }
+
     this._isLightMode = isLight;
     this.sdfPass.setLightMode(isLight);
     this.labelLayer.setLightMode(isLight);
 
     if (isLight) {
       this.renderer.setClearColor(0xe8eaf0, 1);
-      this.scene.fog = new THREE.FogExp2(0xe8eaf0, 0.001);
+      const fogDensity = (this.scene.fog as THREE.FogExp2).density;
+      this.scene.fog = new THREE.FogExp2(0xe8eaf0, fogDensity);
+      this.sdfPass.setFogColor(new THREE.Color(0xe8eaf0));
       (this._grid.material as unknown as { color: THREE.Color }).color.set(0xc0c4d0);
       this._ambientLight.color.set(0x888899);
       this._ambientLight.intensity = 1.5;
       this._dirLight.color.set(0xffffff);
       this._dirLight.intensity = 1.0;
-      const nodeMat = this.nodeMesh.mesh.material as THREE.MeshStandardMaterial;
       nodeMat.emissive.set(0x112233);
       nodeMat.emissiveIntensity = 0.1;
       nodeMat.roughness = 0.5;
     } else {
       this.renderer.setClearColor(this._darkDefaults.clearColor, 1);
-      this.scene.fog = new THREE.FogExp2(this._darkDefaults.fogColor, 0.001);
+      const fogDensity = this._savedDarkState?.fogDensity ?? (this.scene.fog as THREE.FogExp2).density;
+      this.scene.fog = new THREE.FogExp2(this._darkDefaults.fogColor, fogDensity);
+      this.sdfPass.setFogColor(new THREE.Color(this._darkDefaults.fogColor));
       (this._grid.material as unknown as { color: THREE.Color }).color.set(this._darkDefaults.gridColor);
       this._ambientLight.color.set(this._darkDefaults.ambientColor);
-      this._ambientLight.intensity = this._darkDefaults.ambientIntensity;
+      this._ambientLight.intensity = this._savedDarkState?.ambientIntensity ?? this._darkDefaults.ambientIntensity;
       this._dirLight.color.set(this._darkDefaults.dirColor);
-      this._dirLight.intensity = this._darkDefaults.dirIntensity;
-      const nodeMat = this.nodeMesh.mesh.material as THREE.MeshStandardMaterial;
+      this._dirLight.intensity = this._savedDarkState?.dirIntensity ?? this._darkDefaults.dirIntensity;
       nodeMat.emissive.set(this._darkDefaults.emissive);
-      nodeMat.emissiveIntensity = this._darkDefaults.emissiveIntensity;
-      nodeMat.roughness = this._darkDefaults.roughness;
+      nodeMat.emissiveIntensity = this._savedDarkState?.emissiveIntensity ?? this._darkDefaults.emissiveIntensity;
+      nodeMat.roughness = this._savedDarkState?.roughness ?? this._darkDefaults.roughness;
+      this._savedDarkState = null;
     }
   }
 
@@ -553,17 +578,26 @@ export class SceneManager {
     nodeScale?: number;
     emissiveIntensity?: number;
     edgeOpacity?: number;
+    edgeWidth?: number;
     ambientIntensity?: number;
     fogDensity?: number;
     fov?: number;
     farPlane?: number;
+    noiseEnabled?: boolean;
+    noiseGlobal?: number;
+    contoursEnabled?: boolean;
   }): void {
     if (settings.sdfIntensity !== undefined) {
       this._sdfIntensityOverride = settings.sdfIntensity;
       this.sdfPass.setIntensity(settings.sdfIntensity);
     }
     if (settings.sdfResDivisor !== undefined) {
-      this.sdfPass.setResDivisor(settings.sdfResDivisor);
+      if (settings.sdfResDivisor < 1) {
+        // Supersampling: value is a multiplier (e.g. 0.5 = 2x)
+        this.sdfPass.setResMultiplier(1.0 / settings.sdfResDivisor);
+      } else {
+        this.sdfPass.setResDivisor(settings.sdfResDivisor);
+      }
       const { width, height } = this._container.getBoundingClientRect();
       this.sdfPass.resize(width, height);
     }
@@ -592,11 +626,30 @@ export class SceneManager {
     if (settings.edgeOpacity !== undefined) {
       this._edgeOpacityOverride = settings.edgeOpacity;
     }
+    if (settings.edgeWidth !== undefined) {
+      this.edgeMesh.setLineWidth(settings.edgeWidth);
+    }
     if (settings.ambientIntensity !== undefined) {
       this._ambientLight.intensity = settings.ambientIntensity;
+      // Boost SDF brightness proportionally (0.8 is default ambient)
+      this.sdfPass.setAmbientBoost(Math.max(0, settings.ambientIntensity - 0.8));
     }
     if (settings.fogDensity !== undefined) {
       (this.scene.fog as THREE.FogExp2).density = settings.fogDensity;
+      this.sdfPass.setFogDensity(settings.fogDensity);
+    }
+    if (settings.noiseEnabled !== undefined) {
+      if (!settings.noiseEnabled) {
+        this.sdfPass.setGlobalNoiseOverride(0);
+      } else {
+        this.sdfPass.setGlobalNoiseOverride(settings.noiseGlobal ?? -1);
+      }
+    }
+    if (settings.noiseGlobal !== undefined && settings.noiseEnabled !== false) {
+      this.sdfPass.setGlobalNoiseOverride(settings.noiseGlobal);
+    }
+    if (settings.contoursEnabled !== undefined) {
+      this.sdfPass.setGlobalContourOverride(settings.contoursEnabled ? 1 : 0);
     }
     if (settings.fov !== undefined) {
       this.camera.fov = settings.fov;
@@ -622,6 +675,7 @@ export class SceneManager {
       nodeScale: this.nodeMesh.getScaleMultiplier(),
       emissiveIntensity: (this.nodeMesh.mesh.material as THREE.MeshStandardMaterial).emissiveIntensity,
       edgeOpacity: (this.edgeMesh.lineSegments.material as THREE.Material & { opacity: number }).opacity,
+      edgeWidth: this.edgeMesh.getLineWidth(),
       ambientIntensity: this._ambientLight.intensity,
       fogDensity: (this.scene.fog as THREE.FogExp2).density,
       fov: this.camera.fov,

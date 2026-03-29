@@ -41,6 +41,15 @@ uniform float uOpacityBoost;     // 0 = default glow, 1 = solid opaque surfaces
 uniform float uFresnelStrength;  // 0 = no rim, 1 = default, 2+ = extreme
 uniform float uLightMode;        // 0 = dark theme, 1 = light theme
 
+// Fog and ambient (mirrors scene fog so SDF fields match)
+uniform float uFogDensity;      // 0 = no fog, same scale as FogExp2
+uniform vec3 uFogColor;         // matches scene background color
+uniform float uAmbientBoost;    // 0 = default, positive = brighter SDF
+
+// Global effect overrides (-1 = use per-field, 0+ = override all)
+uniform float uGlobalNoiseOverride;   // -1 = per-field, 0-1 = global noise amount
+uniform float uGlobalContourOverride; // -1 = per-field, 0 = off, 1 = on
+
 // Constants
 const int MAX_STEPS = 64;
 const float MAX_DIST = 500.0;
@@ -108,7 +117,7 @@ float fieldSDF(vec3 p, int fieldIdx) {
     float d = MAX_DIST;
     float radius = uFieldParams[fieldIdx].x;
     float k = uFieldParams[fieldIdx].y;
-    float noiseAmount = uFieldParams[fieldIdx].z;
+    float noiseAmount = uGlobalNoiseOverride >= 0.0 ? uGlobalNoiseOverride : uFieldParams[fieldIdx].z;
 
     for (float i = 0.0; i < 256.0; i += 1.0) {
         if (i >= uNodeCount) break;
@@ -251,7 +260,10 @@ void main() {
             }
         }
 
-        if (hitFieldIdx >= 0 && uFieldParams[hitFieldIdx].w > 0.5) {
+        bool showContours = uGlobalContourOverride >= 0.0
+            ? (uGlobalContourOverride > 0.5)
+            : (hitFieldIdx >= 0 && uFieldParams[hitFieldIdx].w > 0.5);
+        if (hitFieldIdx >= 0 && showContours) {
             float contourSpacing = uFieldParams[hitFieldIdx].x * 0.3;
             float contourWidth = 0.15;
             float contourDist = mod(length(hitPoint) + uTime * 0.3, contourSpacing);
@@ -280,6 +292,18 @@ void main() {
     // Subtle pulsing
     float pulse = 0.92 + 0.08 * sin(uTime * 0.7);
     color *= pulse;
+
+    // Apply fog to SDF output (matches scene fog behavior)
+    if (uFogDensity > 0.0) {
+        float fogFactor = 1.0 - exp(-uFogDensity * uFogDensity * depth * depth);
+        color = mix(color, uFogColor, fogFactor);
+        alpha *= (1.0 - fogFactor);
+    }
+
+    // Apply ambient boost (brightens SDF surface uniformly)
+    if (uAmbientBoost > 0.0) {
+        color *= (1.0 + uAmbientBoost * 0.5);
+    }
 
     // Light mode: boost saturation and darken for contrast on light backgrounds
     if (uLightMode > 0.5) {

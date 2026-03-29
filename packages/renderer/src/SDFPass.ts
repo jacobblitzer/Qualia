@@ -17,6 +17,7 @@ export class SDFPass {
   private _renderTarget: THREE.WebGLRenderTarget;
   private _nodeTexture: THREE.DataTexture;
   private _resDivisor = 4;
+  private _resMultiplier = 0.25; // 0.25 = 1/4 res (matches divisor 4)
 
   get texture(): THREE.Texture {
     return this._renderTarget.texture;
@@ -26,9 +27,9 @@ export class SDFPass {
     this._orthoCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     this._scene = new THREE.Scene();
 
-    // Render target at 1/4 resolution
-    const rtW = Math.max(1, Math.floor(width / this._resDivisor));
-    const rtH = Math.max(1, Math.floor(height / this._resDivisor));
+    // Render target at 1/4 resolution (default)
+    const rtW = Math.max(1, Math.round(width * this._resMultiplier));
+    const rtH = Math.max(1, Math.round(height * this._resMultiplier));
     this._renderTarget = new THREE.WebGLRenderTarget(rtW, rtH, {
       format: THREE.RGBAFormat,
       type: THREE.HalfFloatType,
@@ -69,6 +70,11 @@ export class SDFPass {
         uOpacityBoost: { value: 0.0 },
         uFresnelStrength: { value: 1.0 },
         uLightMode: { value: 0.0 },
+        uFogDensity: { value: 0.001 },
+        uFogColor: { value: new THREE.Vector3(0.039, 0.047, 0.063) }, // #0a0c10
+        uAmbientBoost: { value: 0.0 },
+        uGlobalNoiseOverride: { value: -1.0 },
+        uGlobalContourOverride: { value: -1.0 },
       },
       transparent: true,
       depthTest: false,
@@ -168,8 +174,8 @@ export class SDFPass {
   }
 
   resize(width: number, height: number): void {
-    const rtW = Math.max(1, Math.floor(width / this._resDivisor));
-    const rtH = Math.max(1, Math.floor(height / this._resDivisor));
+    const rtW = Math.max(1, Math.round(width * this._resMultiplier));
+    const rtH = Math.max(1, Math.round(height * this._resMultiplier));
     this._renderTarget.setSize(rtW, rtH);
     this._material.uniforms.uResolution.value.set(rtW, rtH);
   }
@@ -213,10 +219,40 @@ export class SDFPass {
 
   setResDivisor(divisor: number): void {
     this._resDivisor = Math.max(1, Math.round(divisor));
+    this._resMultiplier = 1.0 / this._resDivisor;
   }
 
   getResDivisor(): number {
     return this._resDivisor;
+  }
+
+  setResMultiplier(multiplier: number): void {
+    this._resMultiplier = Math.max(0.125, Math.min(2.0, multiplier));
+    this._resDivisor = Math.round(1.0 / this._resMultiplier);
+  }
+
+  getResMultiplier(): number {
+    return this._resMultiplier;
+  }
+
+  setFogDensity(density: number): void {
+    this._material.uniforms.uFogDensity.value = density;
+  }
+
+  setFogColor(color: THREE.Color): void {
+    (this._material.uniforms.uFogColor.value as THREE.Vector3).set(color.r, color.g, color.b);
+  }
+
+  setAmbientBoost(boost: number): void {
+    this._material.uniforms.uAmbientBoost.value = boost;
+  }
+
+  setGlobalNoiseOverride(value: number): void {
+    this._material.uniforms.uGlobalNoiseOverride.value = value;
+  }
+
+  setGlobalContourOverride(value: number): void {
+    this._material.uniforms.uGlobalContourOverride.value = value;
   }
 
   dispose(): void {

@@ -92,6 +92,14 @@ export class EdgeMesh {
     }
   }
 
+  setLineWidth(width: number): void {
+    this._material.linewidth = width;
+  }
+
+  getLineWidth(): number {
+    return this._material.linewidth;
+  }
+
   /**
    * Must be called on resize so LineMaterial can compute correct pixel widths.
    */
