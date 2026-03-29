@@ -27,8 +27,18 @@ function AppInner() {
   const [store] = useState(() => new EventStore());
   const [layout] = useState(() => new LayoutEngine());
   const [consoleOpen, setConsoleOpen] = useState(false);
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [, setVersion] = useState(0);
   const { toggleDebug, setStore, renderer } = useDebug();
+
+  // Toggle theme class on root element and update renderer
+  useEffect(() => {
+    const root = document.getElementById('root');
+    if (root) {
+      root.classList.toggle('qualia-light', theme === 'light');
+    }
+    renderer?.applyViewerSettings({ theme });
+  }, [theme, renderer]);
 
   // Pass store to debug context for recorder
   useEffect(() => {
@@ -152,8 +162,16 @@ function AppInner() {
     const mode = DISPLAY_MODES[index];
     if (mode && renderer) {
       renderer.applyDisplayMode(mode.settings);
+      // Display modes can carry a theme setting
+      if (mode.settings.theme) {
+        setTheme(mode.settings.theme);
+      }
     }
   }, [renderer]);
+
+  const toggleTheme = useCallback(() => {
+    setTheme(t => t === 'dark' ? 'light' : 'dark');
+  }, []);
 
   const keyboardCallbacks = useMemo(() => ({
     onToggleConsole: () => setConsoleOpen(v => !v),
@@ -184,7 +202,7 @@ function AppInner() {
   return (
     <StoreContext.Provider value={store}>
       <div className="qualia-app">
-        <Toolbar onImport={handleImport} onExport={handleExport} />
+        <Toolbar onImport={handleImport} onExport={handleExport} theme={theme} onToggleTheme={toggleTheme} />
         <div className="qualia-main">
           <Sidebar />
           <Viewport />

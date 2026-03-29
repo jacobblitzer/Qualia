@@ -102,8 +102,8 @@ export function useKeyboard(
         return;
       }
 
-      // 1-6 — Display modes
-      if (!ctrl && e.key >= '1' && e.key <= '6') {
+      // 1-8 — Display modes
+      if (!ctrl && e.key >= '1' && e.key <= '8') {
         callbacks.onDisplayMode?.(parseInt(e.key) - 1);
         return;
       }

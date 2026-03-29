@@ -835,6 +835,13 @@ button.btn-danger {
   text-align: right;
 }
 
+.sdf-setting-hint {
+  font-size: 8px;
+  color: var(--text-muted);
+  min-width: 24px;
+  flex-shrink: 0;
+}
+
 .sdf-res-select {
   flex: 1;
   padding: 2px 4px;
@@ -900,6 +907,47 @@ button.btn-danger {
   color: var(--text-muted);
   font-size: 9px;
   flex-shrink: 0;
+}
+
+/* ============================================================================
+   Light Mode Theme
+   ============================================================================ */
+
+.qualia-light {
+  --bg-void: #e8eaf0;
+  --bg-surface: #f2f4f8;
+  --bg-elevated: #ffffff;
+  --bg-hover: #e0e4ec;
+  --bg-active: #d0d4e0;
+  --bg-frosted: rgba(242, 244, 248, 0.85);
+
+  --text-primary: #1a1e2e;
+  --text-secondary: #4a5068;
+  --text-muted: #8890a4;
+  --text-accent: #0a8a5e;
+
+  --accent: #0a8a5e;
+  --accent-dim: #15b87a;
+  --accent-glow: rgba(10, 138, 94, 0.15);
+
+  --edge-color: #336699;
+  --border: #d0d4e0;
+  --border-light: #c0c4d0;
+
+  --danger: #cc3333;
+  --warning: #cc8800;
+}
+
+.qualia-light .qualia-lens-indicator {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.qualia-light ::-webkit-scrollbar-thumb {
+  background: #c0c4d0;
+}
+
+.qualia-light ::-webkit-scrollbar-thumb:hover {
+  background: #8890a4;
 }
 
 /* Scrollbar styling */

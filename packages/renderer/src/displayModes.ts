@@ -6,6 +6,11 @@
 export interface DisplayModeSettings {
   sdfIntensity: number;
   sdfResDivisor: number;
+  opacityBoost?: number;
+  blendMode?: number;
+  fresnelStrength?: number;
+  renderOrder?: 'sdf-behind' | 'sdf-opaque-behind';
+  theme?: 'dark' | 'light';
   nodeScale: number;
   emissiveIntensity: number;
   edgeOpacity: number;
@@ -30,6 +35,11 @@ export const DISPLAY_MODES: DisplayMode[] = [
     settings: {
       sdfIntensity: 0.7,
       sdfResDivisor: 4,
+      opacityBoost: 0.0,
+      blendMode: 0.0,
+      fresnelStrength: 1.0,
+      renderOrder: 'sdf-behind',
+      theme: 'dark',
       nodeScale: 1.0,
       emissiveIntensity: 0.4,
       edgeOpacity: 0.6,
@@ -46,6 +56,11 @@ export const DISPLAY_MODES: DisplayMode[] = [
     settings: {
       sdfIntensity: 1.0,
       sdfResDivisor: 2,
+      opacityBoost: 0.8,
+      blendMode: 0.7,
+      fresnelStrength: 0.5,
+      renderOrder: 'sdf-behind',
+      theme: 'dark',
       nodeScale: 0.3,
       emissiveIntensity: 0.1,
       edgeOpacity: 0.15,
@@ -62,6 +77,11 @@ export const DISPLAY_MODES: DisplayMode[] = [
     settings: {
       sdfIntensity: 0.0,
       sdfResDivisor: 4,
+      opacityBoost: 0.0,
+      blendMode: 0.0,
+      fresnelStrength: 1.0,
+      renderOrder: 'sdf-behind',
+      theme: 'dark',
       nodeScale: 0.6,
       emissiveIntensity: 0.8,
       edgeOpacity: 1.0,
@@ -78,6 +98,11 @@ export const DISPLAY_MODES: DisplayMode[] = [
     settings: {
       sdfIntensity: 0.4,
       sdfResDivisor: 4,
+      opacityBoost: 0.0,
+      blendMode: 0.0,
+      fresnelStrength: 2.0,
+      renderOrder: 'sdf-behind',
+      theme: 'dark',
       nodeScale: 0.8,
       emissiveIntensity: 1.0,
       edgeOpacity: 0.3,
@@ -94,6 +119,11 @@ export const DISPLAY_MODES: DisplayMode[] = [
     settings: {
       sdfIntensity: 1.0,
       sdfResDivisor: 2,
+      opacityBoost: 1.0,
+      blendMode: 1.0,
+      fresnelStrength: 0.3,
+      renderOrder: 'sdf-behind',
+      theme: 'dark',
       nodeScale: 1.2,
       emissiveIntensity: 0.6,
       edgeOpacity: 0.4,
@@ -110,6 +140,11 @@ export const DISPLAY_MODES: DisplayMode[] = [
     settings: {
       sdfIntensity: 0.5,
       sdfResDivisor: 2,
+      opacityBoost: 0.0,
+      blendMode: 0.0,
+      fresnelStrength: 1.0,
+      renderOrder: 'sdf-behind',
+      theme: 'dark',
       nodeScale: 1.5,
       emissiveIntensity: 0.5,
       edgeOpacity: 0.8,
@@ -117,6 +152,48 @@ export const DISPLAY_MODES: DisplayMode[] = [
       fogDensity: 0.0008,
       fov: 50,
       farPlane: 1500,
+    },
+  },
+  {
+    id: 'topographic',
+    label: 'Topographic',
+    shortcut: '7',
+    settings: {
+      sdfIntensity: 1.0,
+      sdfResDivisor: 2,
+      opacityBoost: 1.0,
+      blendMode: 1.0,
+      fresnelStrength: 0.2,
+      renderOrder: 'sdf-opaque-behind',
+      theme: 'dark',
+      nodeScale: 1.2,
+      emissiveIntensity: 0.8,
+      edgeOpacity: 1.0,
+      ambientIntensity: 1.0,
+      fogDensity: 0.0,
+      fov: 60,
+      farPlane: 2000,
+    },
+  },
+  {
+    id: 'daytime',
+    label: 'Daytime',
+    shortcut: '8',
+    settings: {
+      sdfIntensity: 0.6,
+      sdfResDivisor: 2,
+      opacityBoost: 0.7,
+      blendMode: 0.8,
+      fresnelStrength: 0.5,
+      renderOrder: 'sdf-opaque-behind',
+      theme: 'light',
+      nodeScale: 1.2,
+      emissiveIntensity: 0.1,
+      edgeOpacity: 0.9,
+      ambientIntensity: 1.5,
+      fogDensity: 0.0,
+      fov: 60,
+      farPlane: 2000,
     },
   },
 ];

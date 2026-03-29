@@ -47,7 +47,7 @@ export function ViewportToolbar({ renderer, onToggleSdfPanel, sdfPanelOpen }: Vi
         <button
           onClick={() => setShowModes(v => !v)}
           className={showModes ? 'active' : ''}
-          title="Display Modes (1-6)"
+          title="Display Modes (1-8)"
         >
           {DISPLAY_MODES.find(m => m.id === activeMode)?.label ?? 'Mode'}
         </button>

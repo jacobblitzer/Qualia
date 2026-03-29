@@ -22,6 +22,7 @@ export class LabelLayer {
   // Visibility controls
   private _visible = true;
   private _baseOpacity = 1.0;
+  private _lightMode = false;
 
   constructor(parentContainer: HTMLElement) {
     this._container = document.createElement('div');
@@ -45,6 +46,10 @@ export class LabelLayer {
 
   setBaseOpacity(opacity: number): void {
     this._baseOpacity = opacity;
+  }
+
+  setLightMode(isLight: boolean): void {
+    this._lightMode = isLight;
   }
 
   /**
@@ -88,14 +93,14 @@ export class LabelLayer {
         const div = document.createElement('div');
         div.style.cssText = `
           position: absolute;
-          color: #d0d6e0;
+          color: ${this._lightMode ? '#1a1e2e' : '#d0d6e0'};
           font-family: 'JetBrains Mono', 'Fira Code', monospace;
           font-size: 11px;
           white-space: nowrap;
           transform: translate(-50%, -100%);
           padding: 2px 6px;
           border-radius: 3px;
-          background: rgba(10, 12, 16, 0.7);
+          background: ${this._lightMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(10, 12, 16, 0.7)'};
           pointer-events: auto;
           cursor: pointer;
           user-select: none;
@@ -133,16 +138,17 @@ export class LabelLayer {
       label.div.style.opacity = String(opacity);
       label.div.style.fontSize = `${fontSize}px`;
 
+      label.div.style.background = this._lightMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(10, 12, 16, 0.7)';
       if (isSelected) {
-        label.div.style.color = '#4ff0c1';
+        label.div.style.color = this._lightMode ? '#0a8a5e' : '#4ff0c1';
         label.div.style.fontWeight = '600';
-        label.div.style.textShadow = '0 0 6px rgba(79, 240, 193, 0.4)';
+        label.div.style.textShadow = this._lightMode ? 'none' : '0 0 6px rgba(79, 240, 193, 0.4)';
       } else if (isHovered) {
-        label.div.style.color = '#e0e6f0';
+        label.div.style.color = this._lightMode ? '#1a1e2e' : '#e0e6f0';
         label.div.style.fontWeight = '400';
         label.div.style.textShadow = 'none';
       } else {
-        label.div.style.color = '#d0d6e0';
+        label.div.style.color = this._lightMode ? '#1a1e2e' : '#d0d6e0';
         label.div.style.fontWeight = '400';
         label.div.style.textShadow = 'none';
       }

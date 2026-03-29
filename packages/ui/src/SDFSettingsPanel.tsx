@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import type { QualiaRenderer } from '@qualia/renderer';
 
 interface SDFSettingsPanelProps {
@@ -9,6 +9,10 @@ interface SDFSettingsPanelProps {
 interface Settings {
   sdfIntensity: number;
   sdfResDivisor: number;
+  opacityBoost: number;
+  blendMode: number;
+  fresnelStrength: number;
+  renderOrder: string;
   nodeScale: number;
   emissiveIntensity: number;
   edgeOpacity: number;
@@ -18,18 +22,21 @@ interface Settings {
   farPlane: number;
 }
 
-function Slider({ label, value, min, max, step, onChange }: {
+function Slider({ label, value, min, max, step, onChange, leftLabel, rightLabel }: {
   label: string;
   value: number;
   min: number;
   max: number;
   step: number;
   onChange: (v: number) => void;
+  leftLabel?: string;
+  rightLabel?: string;
 }) {
   return (
     <div className="sdf-setting-row">
       <label>{label}</label>
       <div className="sdf-setting-control">
+        {leftLabel && <span className="sdf-setting-hint">{leftLabel}</span>}
         <input
           type="range"
           min={min}
@@ -38,7 +45,10 @@ function Slider({ label, value, min, max, step, onChange }: {
           value={value}
           onChange={(e) => onChange(parseFloat(e.target.value))}
         />
-        <span className="sdf-setting-value">{value.toFixed(step < 0.01 ? 4 : step < 1 ? 2 : 0)}</span>
+        {rightLabel
+          ? <span className="sdf-setting-hint">{rightLabel}</span>
+          : <span className="sdf-setting-value">{value.toFixed(step < 0.01 ? 4 : step < 1 ? 2 : 0)}</span>
+        }
       </div>
     </div>
   );
@@ -50,6 +60,10 @@ export function SDFSettingsPanel({ renderer, onClose }: SDFSettingsPanelProps) {
     return {
       sdfIntensity: s.sdfIntensity,
       sdfResDivisor: s.sdfResDivisor,
+      opacityBoost: s.opacityBoost,
+      blendMode: s.blendMode,
+      fresnelStrength: s.fresnelStrength,
+      renderOrder: s.renderOrder,
       nodeScale: s.nodeScale,
       emissiveIntensity: s.emissiveIntensity,
       edgeOpacity: s.edgeOpacity,
@@ -60,7 +74,7 @@ export function SDFSettingsPanel({ renderer, onClose }: SDFSettingsPanelProps) {
     };
   });
 
-  const update = useCallback((key: keyof Settings, value: number) => {
+  const update = useCallback((key: keyof Settings, value: number | string) => {
     setSettings(prev => ({ ...prev, [key]: value }));
     renderer.applyViewerSettings({ [key]: value });
   }, [renderer]);
@@ -76,6 +90,9 @@ export function SDFSettingsPanel({ renderer, onClose }: SDFSettingsPanelProps) {
         <div className="sdf-settings-section">
           <h4>SDF Fields</h4>
           <Slider label="Intensity" value={settings.sdfIntensity} min={0} max={1} step={0.05} onChange={v => update('sdfIntensity', v)} />
+          <Slider label="Opacity" value={settings.opacityBoost} min={0} max={1} step={0.05} onChange={v => update('opacityBoost', v)} leftLabel="Glow" rightLabel="Solid" />
+          <Slider label="Blend" value={settings.blendMode} min={0} max={1} step={0.05} onChange={v => update('blendMode', v)} leftLabel="Add" rightLabel="Alpha" />
+          <Slider label="Fresnel" value={settings.fresnelStrength} min={0} max={3} step={0.1} onChange={v => update('fresnelStrength', v)} />
           <div className="sdf-setting-row">
             <label>Resolution</label>
             <div className="sdf-setting-control">
@@ -88,6 +105,19 @@ export function SDFSettingsPanel({ renderer, onClose }: SDFSettingsPanelProps) {
                 <option value={2}>Half (1/2)</option>
                 <option value={4}>Quarter (1/4)</option>
                 <option value={8}>Eighth (1/8)</option>
+              </select>
+            </div>
+          </div>
+          <div className="sdf-setting-row">
+            <label>Render</label>
+            <div className="sdf-setting-control">
+              <select
+                className="sdf-res-select"
+                value={settings.renderOrder}
+                onChange={(e) => update('renderOrder', e.target.value)}
+              >
+                <option value="sdf-behind">SDF Behind</option>
+                <option value="sdf-opaque-behind">SDF + Graph Overlay</option>
               </select>
             </div>
           </div>

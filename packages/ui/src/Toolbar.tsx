@@ -5,9 +5,11 @@ import { useDebug } from './DebugContext';
 interface ToolbarProps {
   onImport: () => void;
   onExport: () => void;
+  theme: 'dark' | 'light';
+  onToggleTheme: () => void;
 }
 
-export function Toolbar({ onImport, onExport }: ToolbarProps) {
+export function Toolbar({ onImport, onExport, theme, onToggleTheme }: ToolbarProps) {
   const store = useStore();
   const version = useStoreVersion();
   const { debugEnabled, toggleDebug, activeSession } = useDebug();
@@ -41,6 +43,13 @@ export function Toolbar({ onImport, onExport }: ToolbarProps) {
       </div>
 
       <div className="toolbar-spacer" />
+
+      <button
+        onClick={onToggleTheme}
+        title="Toggle Light/Dark Theme"
+      >
+        {theme === 'dark' ? 'Light' : 'Dark'}
+      </button>
 
       <button
         className={debugEnabled ? 'active debug-toggle' : 'debug-toggle'}

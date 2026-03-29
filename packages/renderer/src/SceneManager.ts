@@ -513,7 +513,7 @@ export class SceneManager {
     if (isLight) {
       this.renderer.setClearColor(0xe8eaf0, 1);
       this.scene.fog = new THREE.FogExp2(0xe8eaf0, 0.001);
-      (this._grid.material as THREE.MeshBasicMaterial).color.set(0xc0c4d0);
+      (this._grid.material as unknown as { color: THREE.Color }).color.set(0xc0c4d0);
       this._ambientLight.color.set(0x888899);
       this._ambientLight.intensity = 1.5;
       this._dirLight.color.set(0xffffff);
@@ -525,7 +525,7 @@ export class SceneManager {
     } else {
       this.renderer.setClearColor(this._darkDefaults.clearColor, 1);
       this.scene.fog = new THREE.FogExp2(this._darkDefaults.fogColor, 0.001);
-      (this._grid.material as THREE.MeshBasicMaterial).color.set(this._darkDefaults.gridColor);
+      (this._grid.material as unknown as { color: THREE.Color }).color.set(this._darkDefaults.gridColor);
       this._ambientLight.color.set(this._darkDefaults.ambientColor);
       this._ambientLight.intensity = this._darkDefaults.ambientIntensity;
       this._dirLight.color.set(this._darkDefaults.dirColor);
@@ -615,14 +615,19 @@ export class SceneManager {
     return {
       sdfIntensity: this.sdfPass.getIntensity(),
       sdfResDivisor: this.sdfPass.getResDivisor(),
+      opacityBoost: this.sdfPass.getOpacityBoost(),
+      blendMode: this.getCompositeBlendMode(),
+      fresnelStrength: this.sdfPass.getFresnelStrength(),
+      renderOrder: this._renderOrder as string,
       nodeScale: this.nodeMesh.getScaleMultiplier(),
       emissiveIntensity: (this.nodeMesh.mesh.material as THREE.MeshStandardMaterial).emissiveIntensity,
-      edgeOpacity: (this.edgeMesh.lineSegments.material as THREE.LineBasicMaterial).opacity,
+      edgeOpacity: (this.edgeMesh.lineSegments.material as THREE.Material & { opacity: number }).opacity,
       ambientIntensity: this._ambientLight.intensity,
       fogDensity: (this.scene.fog as THREE.FogExp2).density,
       fov: this.camera.fov,
       farPlane: this.camera.far,
       gridVisible: this._grid.visible,
+      theme: this._isLightMode ? 'light' as const : 'dark' as const,
     };
   }
 
@@ -643,6 +648,7 @@ export class SceneManager {
     this.renderer.setSize(width, height);
     this._sceneRT.setSize(width, height);
     this.sdfPass.resize(width, height);
+    this.edgeMesh.setResolution(width, height);
   }
 
   /**
