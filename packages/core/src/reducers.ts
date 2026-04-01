@@ -45,12 +45,21 @@ export function applyEvent(graph: Graph, event: QualiaEvent, state: QualiaState)
       graph.updateContext(event.payload.id, event.payload.updates);
       break;
 
+    case 'GROUP_ADD':
+      graph.addGroup(event.payload.contextId, event.payload.group);
+      break;
+
+    case 'GROUP_UPDATE':
+      graph.updateGroup(event.payload.contextId, event.payload.groupId, event.payload.updates);
+      break;
+
+    // Backward compat: old FIELD_ADD/FIELD_UPDATE from saved event logs
     case 'FIELD_ADD':
-      graph.addField(event.payload.contextId, event.payload.field);
+      graph.addGroup(event.payload.contextId, event.payload.field);
       break;
 
     case 'FIELD_UPDATE':
-      graph.updateField(event.payload.contextId, event.payload.fieldId, event.payload.updates);
+      graph.updateGroup(event.payload.contextId, event.payload.fieldId, event.payload.updates);
       break;
 
     case 'LAYOUT_RUN':
@@ -187,6 +196,10 @@ export function computeInverse(graph: Graph, state: QualiaState, event: QualiaEv
     case 'LAYOUT_RUN':
     case 'AGENT_TICK':
     case 'AGENT_SEND':
+    case 'GROUP_ADD':
+    case 'GROUP_UPDATE':
+    case 'FIELD_ADD':
+    case 'FIELD_UPDATE':
       return undefined;
 
     default:

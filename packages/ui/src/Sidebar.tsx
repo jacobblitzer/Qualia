@@ -50,8 +50,8 @@ export function Sidebar() {
           >
             <span
               className="context-dot"
-              style={{ background: ctx.fields[0]?.color
-                ? `rgb(${ctx.fields[0].color.join(',')})`
+              style={{ background: ctx.groups[0]?.color
+                ? `rgb(${ctx.groups[0].color.map((c: number) => Math.round(c * 255)).join(',')})`
                 : 'var(--text-muted)' }}
             />
             {ctx.label}
@@ -59,19 +59,19 @@ export function Sidebar() {
         ))}
       </div>
 
-      {/* Fields */}
-      {store.activeContext && store.activeContext.fields.length > 0 && (
+      {/* Groups */}
+      {store.activeContext && store.activeContext.groups.length > 0 && (
         <div className="sidebar-section">
-          <h3>Fields</h3>
-          {store.activeContext.fields.map(f => (
-            <div key={f.id} className="node-list-item">
+          <h3>Groups</h3>
+          {store.activeContext.groups.map(g => (
+            <div key={g.id} className="node-list-item">
               <span
                 className="node-dot"
-                style={{ background: `rgb(${f.color.join(',')})` }}
+                style={{ background: `rgb(${g.color.map((c: number) => Math.round(c * 255)).join(',')})` }}
               />
-              <span className="node-label">{f.label}</span>
+              <span className="node-label">{g.label}</span>
               <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 'auto' }}>
-                {f.nodeIds.length}
+                {g.nodeIds.length}
               </span>
             </div>
           ))}

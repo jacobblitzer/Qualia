@@ -1,16 +1,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import type { EventStore } from '@qualia/core';
+import type { EventStore, VisualGroup } from '@qualia/core';
 import { NodeMesh } from './NodeMesh';
 import { EdgeMesh } from './EdgeMesh';
 import { LabelLayer } from './LabelLayer';
-import { SDFPass } from './SDFPass';
 import { ContextTransition } from './ContextTransition';
 import { InteractionManager } from './InteractionManager';
-import compositeFragShader from './shaders/composite.frag.glsl';
 
 /**
- * Orchestrates the entire Three.js scene: nodes, edges, SDF fields,
+ * Orchestrates the entire Three.js scene: nodes, edges, labels,
  * context transitions, interaction, and the render loop.
  */
 export class SceneManager {
@@ -21,7 +19,6 @@ export class SceneManager {
   readonly nodeMesh: NodeMesh;
   readonly edgeMesh: EdgeMesh;
   readonly labelLayer: LabelLayer;
-  readonly sdfPass: SDFPass;
   readonly transition: ContextTransition;
   readonly interaction: InteractionManager;
 
@@ -43,18 +40,9 @@ export class SceneManager {
   private _keyUpHandler: (e: KeyboardEvent) => void;
 
   // Override flags: when set, _syncVisuals won't clobber these values
-  private _sdfIntensityOverride: number | null = null;
   private _edgeOpacityOverride: number | null = null;
 
-  // Composite pass (SDF + scene)
-  private _sceneRT: THREE.WebGLRenderTarget;
-  private _compositeScene: THREE.Scene;
-  private _compositeMaterial: THREE.ShaderMaterial;
-  private _compositeCamera: THREE.OrthographicCamera;
-
-  // Render order and light mode
-  private _renderOrder: 'sdf-behind' | 'sdf-opaque-behind' = 'sdf-behind';
-  private _blackTexture: THREE.DataTexture;
+  // Light mode
   private _isLightMode = false;
 
   // Store dark-mode defaults for restoration
@@ -164,7 +152,6 @@ export class SceneManager {
     this.scene.add(this.edgeMesh.lineSegments);
 
     this.labelLayer = new LabelLayer(container);
-    this.sdfPass = new SDFPass(this.renderer, width, height);
     this.transition = new ContextTransition();
     this.interaction = new InteractionManager(this.camera, this.nodeMesh, canvas);
     this.interaction.setDataAccessors(
@@ -192,39 +179,6 @@ export class SceneManager {
     this.interaction.onControlsEnabled((enabled) => {
       this.controls.enabled = enabled;
     });
-
-    // Scene render target (for composite pass)
-    this._sceneRT = new THREE.WebGLRenderTarget(width, height, {
-      format: THREE.RGBAFormat,
-      type: THREE.HalfFloatType,
-    });
-
-    // Black texture for opaque SDF render order
-    this._blackTexture = new THREE.DataTexture(
-      new Uint8Array([0, 0, 0, 255]), 1, 1, THREE.RGBAFormat,
-    );
-    this._blackTexture.needsUpdate = true;
-
-    // Composite pass
-    this._compositeCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-    this._compositeScene = new THREE.Scene();
-    this._compositeMaterial = new THREE.ShaderMaterial({
-      vertexShader: `
-        varying vec2 vUv;
-        void main() { vUv = uv; gl_Position = vec4(position, 1.0); }
-      `,
-      fragmentShader: compositeFragShader,
-      uniforms: {
-        uSceneTexture: { value: this._sceneRT.texture },
-        uSDFTexture: { value: null as THREE.Texture | null },
-        uBlendMode: { value: 0.0 },
-      },
-      depthTest: false,
-    });
-    this._compositeScene.add(new THREE.Mesh(
-      new THREE.PlaneGeometry(2, 2),
-      this._compositeMaterial,
-    ));
   }
 
   /**
@@ -254,33 +208,10 @@ export class SceneManager {
     const width = this._container.clientWidth;
     const height = this._container.clientHeight;
 
-    if (this._renderOrder === 'sdf-opaque-behind') {
-      // SDF first, then scene on top
-      const sdfTex = this.sdfPass.render(this.camera, time);
-      this._compositeMaterial.uniforms.uSDFTexture.value = sdfTex;
-      this._compositeMaterial.uniforms.uSceneTexture.value = this._blackTexture;
+    // Direct render to screen
+    this.renderer.render(this.scene, this.camera);
 
-      this.renderer.setRenderTarget(null);
-      this.renderer.render(this._compositeScene, this._compositeCamera);
-
-      // Render scene on top (nodes + edges visible over opaque SDF)
-      this.renderer.autoClear = false;
-      this.renderer.render(this.scene, this.camera);
-      this.renderer.autoClear = true;
-    } else {
-      // Default: scene to RT, SDF, composite
-      this.renderer.setRenderTarget(this._sceneRT);
-      this.renderer.render(this.scene, this.camera);
-
-      const sdfTex = this.sdfPass.render(this.camera, time);
-      this._compositeMaterial.uniforms.uSDFTexture.value = sdfTex;
-      this._compositeMaterial.uniforms.uSceneTexture.value = this._sceneRT.texture;
-
-      this.renderer.setRenderTarget(null);
-      this.renderer.render(this._compositeScene, this._compositeCamera);
-    }
-
-    // 4. Labels
+    // Labels
     this.labelLayer.update(
       this._getCurrentPositions(),
       this._store.state.nodes,
@@ -312,18 +243,6 @@ export class SceneManager {
     const edgeOpacity = this._edgeOpacityOverride
       ?? (this.transition.isActive ? this.transition.edgeOpacity : 0.6);
     this.edgeMesh.update(edges, positions, store.state.edgeTypes, edgeOpacity, store.state.selectedNodeIds, store.state.selectedEdgeIds);
-
-    // SDF
-    const fields = store.getActiveFields();
-    this.sdfPass.updateNodes(positions, fields);
-    this.sdfPass.updateFields(fields);
-    if (this._sdfIntensityOverride !== null) {
-      this.sdfPass.setIntensity(this._sdfIntensityOverride);
-    } else if (this.transition.isActive) {
-      this.sdfPass.setIntensity(this.transition.fieldIntensity);
-    } else {
-      this.sdfPass.setIntensity(store.state.activeContextId === null ? 0.2 : 0.7);
-    }
   }
 
   private _getCurrentPositions(): Record<string, [number, number, number]> {
@@ -498,22 +417,6 @@ export class SceneManager {
     this.edgeMesh.lineSegments.visible = visible;
   }
 
-  setCompositeBlendMode(mode: number): void {
-    this._compositeMaterial.uniforms.uBlendMode.value = Math.max(0, Math.min(1, mode));
-  }
-
-  getCompositeBlendMode(): number {
-    return this._compositeMaterial.uniforms.uBlendMode.value as number;
-  }
-
-  setRenderOrder(order: 'sdf-behind' | 'sdf-opaque-behind'): void {
-    this._renderOrder = order;
-  }
-
-  getRenderOrder(): string {
-    return this._renderOrder;
-  }
-
   setLightMode(isLight: boolean): void {
     const nodeMat = this.nodeMesh.mesh.material as THREE.MeshStandardMaterial;
 
@@ -529,7 +432,6 @@ export class SceneManager {
     }
 
     this._isLightMode = isLight;
-    this.sdfPass.setLightMode(isLight);
     this.labelLayer.setLightMode(isLight);
     this.edgeMesh.setLightMode(isLight);
 
@@ -537,7 +439,6 @@ export class SceneManager {
       this.renderer.setClearColor(0xe8eaf0, 1);
       const fogDensity = (this.scene.fog as THREE.FogExp2).density;
       this.scene.fog = new THREE.FogExp2(0xe8eaf0, fogDensity);
-      this.sdfPass.setFogColor(new THREE.Color(0xe8eaf0));
       (this._grid.material as unknown as { color: THREE.Color }).color.set(0xc0c4d0);
       this._ambientLight.color.set(0x888899);
       this._ambientLight.intensity = 1.5;
@@ -550,7 +451,6 @@ export class SceneManager {
       this.renderer.setClearColor(this._darkDefaults.clearColor, 1);
       const fogDensity = this._savedDarkState?.fogDensity ?? (this.scene.fog as THREE.FogExp2).density;
       this.scene.fog = new THREE.FogExp2(this._darkDefaults.fogColor, fogDensity);
-      this.sdfPass.setFogColor(new THREE.Color(this._darkDefaults.fogColor));
       (this._grid.material as unknown as { color: THREE.Color }).color.set(this._darkDefaults.gridColor);
       this._ambientLight.color.set(this._darkDefaults.ambientColor);
       this._ambientLight.intensity = this._savedDarkState?.ambientIntensity ?? this._darkDefaults.ambientIntensity;
@@ -566,15 +466,9 @@ export class SceneManager {
   get isLightMode(): boolean { return this._isLightMode; }
 
   /**
-   * Apply viewer settings from the SDF settings panel.
+   * Apply viewer settings from the settings panel.
    */
   applyViewerSettings(settings: {
-    sdfIntensity?: number;
-    sdfResDivisor?: number;
-    opacityBoost?: number;
-    blendMode?: number;
-    fresnelStrength?: number;
-    renderOrder?: 'sdf-behind' | 'sdf-opaque-behind';
     theme?: 'dark' | 'light';
     nodeScale?: number;
     emissiveIntensity?: number;
@@ -584,62 +478,7 @@ export class SceneManager {
     fogDensity?: number;
     fov?: number;
     farPlane?: number;
-    noiseEnabled?: boolean;
-    noiseGlobal?: number;
-    contoursEnabled?: boolean;
-    // PBR material
-    specularStrength?: number;
-    roughness?: number;
-    metalness?: number;
-    // Domain warp
-    warpEnabled?: boolean;
-    warpAmount?: number;
-    warpScale?: number;
-    warpSpeed?: number;
-    // Onion layers
-    onionEnabled?: boolean;
-    onionLayers?: number;
-    onionThickness?: number;
-    onionGap?: number;
-    // Interior fog
-    interiorFogEnabled?: boolean;
-    interiorFogDensity?: number;
-    // Color blending
-    colorBlendSharpness?: number;
-    // Fine-grained noise
-    noiseScale?: number;
-    noiseSpeed?: number;
-    // Fine-grained contour
-    contourSpacing?: number;
-    contourWidth?: number;
-    contourContrast?: number;
   }): void {
-    if (settings.sdfIntensity !== undefined) {
-      this._sdfIntensityOverride = settings.sdfIntensity;
-      this.sdfPass.setIntensity(settings.sdfIntensity);
-    }
-    if (settings.sdfResDivisor !== undefined) {
-      if (settings.sdfResDivisor < 1) {
-        // Supersampling: value is a multiplier (e.g. 0.5 = 2x)
-        this.sdfPass.setResMultiplier(1.0 / settings.sdfResDivisor);
-      } else {
-        this.sdfPass.setResDivisor(settings.sdfResDivisor);
-      }
-      const { width, height } = this._container.getBoundingClientRect();
-      this.sdfPass.resize(width, height);
-    }
-    if (settings.opacityBoost !== undefined) {
-      this.sdfPass.setOpacityBoost(settings.opacityBoost);
-    }
-    if (settings.blendMode !== undefined) {
-      this.setCompositeBlendMode(settings.blendMode);
-    }
-    if (settings.fresnelStrength !== undefined) {
-      this.sdfPass.setFresnelStrength(settings.fresnelStrength);
-    }
-    if (settings.renderOrder !== undefined) {
-      this.setRenderOrder(settings.renderOrder);
-    }
     if (settings.theme !== undefined) {
       this.setLightMode(settings.theme === 'light');
     }
@@ -658,25 +497,9 @@ export class SceneManager {
     }
     if (settings.ambientIntensity !== undefined) {
       this._ambientLight.intensity = settings.ambientIntensity;
-      // Boost SDF brightness proportionally (0.8 is default ambient)
-      this.sdfPass.setAmbientBoost(Math.max(0, settings.ambientIntensity - 0.8));
     }
     if (settings.fogDensity !== undefined) {
       (this.scene.fog as THREE.FogExp2).density = settings.fogDensity;
-      this.sdfPass.setFogDensity(settings.fogDensity);
-    }
-    if (settings.noiseEnabled !== undefined) {
-      if (!settings.noiseEnabled) {
-        this.sdfPass.setGlobalNoiseOverride(0);
-      } else {
-        this.sdfPass.setGlobalNoiseOverride(settings.noiseGlobal ?? -1);
-      }
-    }
-    if (settings.noiseGlobal !== undefined && settings.noiseEnabled !== false) {
-      this.sdfPass.setGlobalNoiseOverride(settings.noiseGlobal);
-    }
-    if (settings.contoursEnabled !== undefined) {
-      this.sdfPass.setGlobalContourOverride(settings.contoursEnabled ? 1 : 0);
     }
     if (settings.fov !== undefined) {
       this.camera.fov = settings.fov;
@@ -686,70 +509,6 @@ export class SceneManager {
       this.camera.far = settings.farPlane;
       this.camera.updateProjectionMatrix();
     }
-    // PBR material
-    if (settings.specularStrength !== undefined) {
-      this.sdfPass.setSpecularStrength(settings.specularStrength);
-    }
-    if (settings.roughness !== undefined) {
-      this.sdfPass.setRoughness(settings.roughness);
-    }
-    if (settings.metalness !== undefined) {
-      this.sdfPass.setMetalness(settings.metalness);
-    }
-    // Domain warp
-    if (settings.warpEnabled !== undefined) {
-      this.sdfPass.setWarpEnabled(settings.warpEnabled);
-    }
-    if (settings.warpAmount !== undefined) {
-      this.sdfPass.setWarpAmount(settings.warpAmount);
-    }
-    if (settings.warpScale !== undefined) {
-      this.sdfPass.setWarpScale(settings.warpScale);
-    }
-    if (settings.warpSpeed !== undefined) {
-      this.sdfPass.setWarpSpeed(settings.warpSpeed);
-    }
-    // Onion layers
-    if (settings.onionEnabled !== undefined) {
-      this.sdfPass.setOnionEnabled(settings.onionEnabled);
-    }
-    if (settings.onionLayers !== undefined) {
-      this.sdfPass.setOnionLayers(settings.onionLayers);
-    }
-    if (settings.onionThickness !== undefined) {
-      this.sdfPass.setOnionThickness(settings.onionThickness);
-    }
-    if (settings.onionGap !== undefined) {
-      this.sdfPass.setOnionGap(settings.onionGap);
-    }
-    // Interior fog
-    if (settings.interiorFogEnabled !== undefined) {
-      this.sdfPass.setInteriorFogEnabled(settings.interiorFogEnabled);
-    }
-    if (settings.interiorFogDensity !== undefined) {
-      this.sdfPass.setInteriorFogDensity(settings.interiorFogDensity);
-    }
-    // Color blending
-    if (settings.colorBlendSharpness !== undefined) {
-      this.sdfPass.setColorBlendSharpness(settings.colorBlendSharpness);
-    }
-    // Fine-grained noise
-    if (settings.noiseScale !== undefined) {
-      this.sdfPass.setNoiseScale(settings.noiseScale);
-    }
-    if (settings.noiseSpeed !== undefined) {
-      this.sdfPass.setNoiseSpeed(settings.noiseSpeed);
-    }
-    // Fine-grained contour
-    if (settings.contourSpacing !== undefined) {
-      this.sdfPass.setContourSpacing(settings.contourSpacing);
-    }
-    if (settings.contourWidth !== undefined) {
-      this.sdfPass.setContourWidth(settings.contourWidth);
-    }
-    if (settings.contourContrast !== undefined) {
-      this.sdfPass.setContourContrast(settings.contourContrast);
-    }
   }
 
   /**
@@ -757,12 +516,6 @@ export class SceneManager {
    */
   getViewerSettings() {
     return {
-      sdfIntensity: this.sdfPass.getIntensity(),
-      sdfResDivisor: this.sdfPass.getResDivisor(),
-      opacityBoost: this.sdfPass.getOpacityBoost(),
-      blendMode: this.getCompositeBlendMode(),
-      fresnelStrength: this.sdfPass.getFresnelStrength(),
-      renderOrder: this._renderOrder as string,
       nodeScale: this.nodeMesh.getScaleMultiplier(),
       emissiveIntensity: (this.nodeMesh.mesh.material as THREE.MeshStandardMaterial).emissiveIntensity,
       edgeOpacity: (this.edgeMesh.lineSegments.material as THREE.Material & { opacity: number }).opacity,
@@ -773,32 +526,6 @@ export class SceneManager {
       farPlane: this.camera.far,
       gridVisible: this._grid.visible,
       theme: this._isLightMode ? 'light' as const : 'dark' as const,
-      // PBR material
-      specularStrength: this.sdfPass.getSpecularStrength(),
-      roughness: this.sdfPass.getRoughness(),
-      metalness: this.sdfPass.getMetalness(),
-      // Domain warp
-      warpEnabled: this.sdfPass.getWarpEnabled(),
-      warpAmount: this.sdfPass.getWarpAmount(),
-      warpScale: this.sdfPass.getWarpScale(),
-      warpSpeed: this.sdfPass.getWarpSpeed(),
-      // Onion layers
-      onionEnabled: this.sdfPass.getOnionEnabled(),
-      onionLayers: this.sdfPass.getOnionLayers(),
-      onionThickness: this.sdfPass.getOnionThickness(),
-      onionGap: this.sdfPass.getOnionGap(),
-      // Interior fog
-      interiorFogEnabled: this.sdfPass.getInteriorFogEnabled(),
-      interiorFogDensity: this.sdfPass.getInteriorFogDensity(),
-      // Color blending
-      colorBlendSharpness: this.sdfPass.getColorBlendSharpness(),
-      // Fine-grained noise
-      noiseScale: this.sdfPass.getNoiseScale(),
-      noiseSpeed: this.sdfPass.getNoiseSpeed(),
-      // Fine-grained contour
-      contourSpacing: this.sdfPass.getContourSpacing(),
-      contourWidth: this.sdfPass.getContourWidth(),
-      contourContrast: this.sdfPass.getContourContrast(),
     };
   }
 
@@ -817,8 +544,6 @@ export class SceneManager {
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height);
-    this._sceneRT.setSize(width, height);
-    this.sdfPass.resize(width, height);
     this.edgeMesh.setResolution(width, height);
   }
 
@@ -842,14 +567,21 @@ export class SceneManager {
       memoryMB: Math.round(memMB * 10) / 10,
       nodeCount: this.nodeMesh.count,
       edgeCount: this.edgeMesh.count,
-      fieldCount: this.sdfPass.getFieldCount(),
-      sdfNodeCount: this.sdfPass.getNodeCount(),
-      sdfResolution: this.sdfPass.getResolution() as [number, number],
-      sdfIntensity: this.sdfPass.getIntensity(),
+      groupCount: this._store.getActiveGroups().length,
       cameraPosition: [cam.position.x, cam.position.y, cam.position.z] as [number, number, number],
       cameraTarget: [tgt.x, tgt.y, tgt.z] as [number, number, number],
       activeContextId: this._store.state.activeContextId,
     };
+  }
+
+  /** Future: integrate Penumbra SDF renderer */
+  setPenumbraRenderer(_renderer: unknown): void {
+    // Stub — Penumbra integration will be added later
+  }
+
+  /** Future: push visual group data to Penumbra */
+  updateVisualGroups(_groups: VisualGroup[]): void {
+    // Stub — will create/update Penumbra fields from group data
   }
 
   dispose(): void {
@@ -859,10 +591,7 @@ export class SceneManager {
     this.nodeMesh.dispose();
     this.edgeMesh.dispose();
     this.labelLayer.dispose();
-    this.sdfPass.dispose();
     this.interaction.dispose();
-    this._sceneRT.dispose();
-    this._compositeMaterial.dispose();
     this.renderer.dispose();
   }
 }

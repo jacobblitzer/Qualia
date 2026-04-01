@@ -10,7 +10,7 @@ export function Viewport() {
   const store = useStore();
   const { setRenderer: setDebugRenderer } = useDebug();
   const [renderer, setRenderer] = useState<QualiaRenderer | null>(null);
-  const [sdfPanelOpen, setSdfPanelOpen] = useState(false);
+  const [settingsPanelOpen, setSettingsPanelOpen] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -76,11 +76,11 @@ export function Viewport() {
       </div>
       <ViewportToolbar
         renderer={renderer}
-        onToggleSdfPanel={() => setSdfPanelOpen(v => !v)}
-        sdfPanelOpen={sdfPanelOpen}
+        onToggleSettingsPanel={() => setSettingsPanelOpen(v => !v)}
+        settingsPanelOpen={settingsPanelOpen}
       />
-      {sdfPanelOpen && renderer && (
-        <SDFSettingsPanel renderer={renderer} onClose={() => setSdfPanelOpen(false)} />
+      {settingsPanelOpen && renderer && (
+        <SDFSettingsPanel renderer={renderer} onClose={() => setSettingsPanelOpen(false)} />
       )}
     </div>
   );

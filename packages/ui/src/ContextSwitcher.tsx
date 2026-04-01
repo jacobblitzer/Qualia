@@ -25,8 +25,8 @@ export function ContextSwitcher() {
           <span
             className="context-dot"
             style={{
-              background: ctx.fields[0]?.color
-                ? `rgb(${ctx.fields[0].color.join(',')})`
+              background: ctx.groups[0]?.color
+                ? `rgb(${ctx.groups[0].color.map((c: number) => Math.round(c * 255)).join(',')})`
                 : 'var(--accent)',
             }}
           />

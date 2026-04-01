@@ -56,9 +56,9 @@ export interface Edge {
   state: Record<string, unknown>;
 }
 
-// --- SDF Field Definition ---
+// --- Visual Group (formerly SDF Field) ---
 
-export interface SDFParams {
+export interface VisualGroupParams {
   radius: number;
   blendFactor: number;    // 0-1, smooth-min k
   transparency: number;   // 0-1
@@ -66,13 +66,19 @@ export interface SDFParams {
   contourLines?: boolean;
 }
 
-export interface SDFFieldDef {
+export interface VisualGroup {
   id: string;
   label: string;
   nodeIds: string[];
-  color: [number, number, number];  // RGB 0-255
-  sdf: SDFParams;
+  color: [number, number, number];  // RGB 0-1 (Penumbra convention)
+  params: VisualGroupParams;
+  computedMetrics?: Record<string, number>;
 }
+
+/** @deprecated Use VisualGroupParams */
+export type SDFParams = VisualGroupParams;
+/** @deprecated Use VisualGroup */
+export type SDFFieldDef = VisualGroup;
 
 // --- Context ---
 
@@ -97,7 +103,7 @@ export interface Context {
   label: string;
   description?: string;
   edges: Edge[];
-  fields: SDFFieldDef[];
+  groups: VisualGroup[];
   layout: LayoutConfig;
   visualMapping?: VisualMapping;
   camera?: CameraState;
@@ -146,7 +152,21 @@ export interface QualiaGraphJSON {
       behavior?: AgentBehavior | null;
       state?: Record<string, unknown>;
     }>;
-    fields: Array<{
+    groups?: Array<{
+      id: string;
+      label: string;
+      nodeIds: string[];
+      color: [number, number, number];
+      params: {
+        radius: number;
+        blendFactor: number;
+        transparency: number;
+        noise?: number;
+        contourLines?: boolean;
+      };
+    }>;
+    // Backward compat: old format used "fields" with "sdf" sub-object
+    fields?: Array<{
       id: string;
       label: string;
       nodeIds: string[];
@@ -165,7 +185,7 @@ export interface QualiaGraphJSON {
     positions?: Record<string, [number, number, number]>;
   }>;
 
-  // Backward compatibility: top-level edges/fields auto-wrap into default context
+  // Backward compatibility: top-level edges/fields/groups auto-wrap into default context
   edges?: Array<{
     id: string;
     source: string;
@@ -173,6 +193,18 @@ export interface QualiaGraphJSON {
     type: string;
     weight?: number;
     label?: string;
+  }>;
+
+  groups?: Array<{
+    id: string;
+    label: string;
+    nodeIds: string[];
+    color: [number, number, number];
+    params?: {
+      radius?: number;
+      blendFactor?: number;
+      transparency?: number;
+    };
   }>;
 
   fields?: Array<{
@@ -200,8 +232,11 @@ export type QualiaEvent =
   | { type: 'CONTEXT_ADD'; payload: Context }
   | { type: 'CONTEXT_SWITCH'; payload: { contextId: string | null } }
   | { type: 'CONTEXT_UPDATE'; payload: { id: string; updates: Partial<Context> } }
-  | { type: 'FIELD_ADD'; payload: { contextId: string; field: SDFFieldDef } }
-  | { type: 'FIELD_UPDATE'; payload: { contextId: string; fieldId: string; updates: Partial<SDFFieldDef> } }
+  | { type: 'GROUP_ADD'; payload: { contextId: string; group: VisualGroup } }
+  | { type: 'GROUP_UPDATE'; payload: { contextId: string; groupId: string; updates: Partial<VisualGroup> } }
+  // Backward compat aliases for old event logs
+  | { type: 'FIELD_ADD'; payload: { contextId: string; field: VisualGroup } }
+  | { type: 'FIELD_UPDATE'; payload: { contextId: string; fieldId: string; updates: Partial<VisualGroup> } }
   | { type: 'LAYOUT_RUN'; payload: { contextId: string } }
   | { type: 'GRAPH_LOAD'; payload: QualiaGraphJSON }
   | { type: 'GRAPH_CLEAR'; payload: Record<string, never> }

@@ -1,26 +1,13 @@
-import React, { useState } from 'react';
+import React from 'react';
 import type { QualiaRenderer } from '@qualia/renderer';
-import { DISPLAY_MODES } from '@qualia/renderer';
 
 interface ViewportToolbarProps {
   renderer: QualiaRenderer | null;
-  onToggleSdfPanel: () => void;
-  sdfPanelOpen: boolean;
+  onToggleSettingsPanel: () => void;
+  settingsPanelOpen: boolean;
 }
 
-export function ViewportToolbar({ renderer, onToggleSdfPanel, sdfPanelOpen }: ViewportToolbarProps) {
-  const [activeMode, setActiveMode] = useState('default');
-  const [showModes, setShowModes] = useState(false);
-
-  const applyMode = (modeId: string) => {
-    const mode = DISPLAY_MODES.find(m => m.id === modeId);
-    if (mode && renderer) {
-      renderer.applyDisplayMode(mode.settings);
-      setActiveMode(modeId);
-    }
-    setShowModes(false);
-  };
-
+export function ViewportToolbar({ renderer, onToggleSettingsPanel, settingsPanelOpen }: ViewportToolbarProps) {
   return (
     <div className="viewport-toolbar">
       <button
@@ -43,36 +30,12 @@ export function ViewportToolbar({ renderer, onToggleSdfPanel, sdfPanelOpen }: Vi
         Grid
       </button>
       <div className="toolbar-separator" />
-      <div className="display-mode-container">
-        <button
-          onClick={() => setShowModes(v => !v)}
-          className={showModes ? 'active' : ''}
-          title="Display Modes (1-8)"
-        >
-          {DISPLAY_MODES.find(m => m.id === activeMode)?.label ?? 'Mode'}
-        </button>
-        {showModes && (
-          <div className="display-mode-dropdown">
-            {DISPLAY_MODES.map(mode => (
-              <button
-                key={mode.id}
-                className={activeMode === mode.id ? 'active' : ''}
-                onClick={() => applyMode(mode.id)}
-              >
-                <span className="mode-shortcut">{mode.shortcut}</span>
-                {mode.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-      <div className="toolbar-separator" />
       <button
-        onClick={onToggleSdfPanel}
-        className={sdfPanelOpen ? 'active' : ''}
-        title="SDF Settings"
+        onClick={onToggleSettingsPanel}
+        className={settingsPanelOpen ? 'active' : ''}
+        title="Viewer Settings"
       >
-        SDF
+        Settings
       </button>
     </div>
   );

@@ -16,7 +16,6 @@ export function useKeyboard(
     onToggleDebug?: () => void;
     onFitToView?: () => void;
     onResetCamera?: () => void;
-    onDisplayMode?: (index: number) => void;
   },
 ): void {
   useEffect(() => {
@@ -99,12 +98,6 @@ export function useKeyboard(
       // F — Focus selected node
       if (e.key === 'f' || e.key === 'F') {
         // Handled by renderer via callback
-        return;
-      }
-
-      // 1-8 — Display modes
-      if (!ctrl && e.key >= '1' && e.key <= '8') {
-        callbacks.onDisplayMode?.(parseInt(e.key) - 1);
         return;
       }
 

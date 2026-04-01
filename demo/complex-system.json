@@ -36,32 +36,26 @@
     { "id": "cache", "type": "service", "label": "Cache Layer", "importance": 0.75, "tags": ["infrastructure"] },
     { "id": "logging-svc", "type": "service", "label": "Logging Service", "importance": 0.55, "tags": ["observability"] },
     { "id": "monitoring-svc", "type": "service", "label": "Monitoring", "importance": 0.6, "tags": ["observability"] },
-
     { "id": "user-db", "type": "database", "label": "User DB", "importance": 0.8 },
     { "id": "order-db", "type": "database", "label": "Order DB", "importance": 0.75 },
     { "id": "inventory-db", "type": "database", "label": "Inventory DB", "importance": 0.65 },
     { "id": "analytics-db", "type": "database", "label": "Analytics DB", "importance": 0.6 },
     { "id": "search-index", "type": "database", "label": "Search Index", "importance": 0.65 },
     { "id": "session-store", "type": "database", "label": "Session Store", "importance": 0.7 },
-
     { "id": "event-bus", "type": "queue", "label": "Event Bus", "importance": 0.85, "tags": ["infrastructure"] },
     { "id": "task-queue", "type": "queue", "label": "Task Queue", "importance": 0.6, "tags": ["infrastructure"] },
     { "id": "email-queue", "type": "queue", "label": "Email Queue", "importance": 0.45, "tags": ["comms"] },
-
     { "id": "web-app", "type": "frontend", "label": "Web App", "importance": 0.9 },
     { "id": "mobile-app", "type": "frontend", "label": "Mobile App", "importance": 0.85 },
     { "id": "admin-panel", "type": "frontend", "label": "Admin Panel", "importance": 0.6 },
-
     { "id": "alice", "type": "person", "label": "Alice (Platform Lead)", "importance": 0.7 },
     { "id": "bob", "type": "person", "label": "Bob (Commerce Lead)", "importance": 0.7 },
     { "id": "carol", "type": "person", "label": "Carol (Frontend Lead)", "importance": 0.7 },
     { "id": "dave", "type": "person", "label": "Dave (Data Lead)", "importance": 0.65 },
     { "id": "eve", "type": "person", "label": "Eve (SRE Lead)", "importance": 0.65 },
-
     { "id": "staging", "type": "service", "label": "Staging Env", "importance": 0.5 },
     { "id": "production", "type": "service", "label": "Production", "importance": 0.95 },
     { "id": "ci-cd", "type": "service", "label": "CI/CD Pipeline", "importance": 0.7 },
-
     { "id": "shipping-svc", "type": "service", "label": "Shipping Service", "importance": 0.6, "tags": ["commerce"] },
     { "id": "tax-svc", "type": "service", "label": "Tax Service", "importance": 0.5, "tags": ["commerce"] },
     { "id": "review-svc", "type": "service", "label": "Review Service", "importance": 0.55, "tags": ["discovery"] },
@@ -71,24 +65,20 @@
     { "id": "webhook-svc", "type": "service", "label": "Webhook Service", "importance": 0.5 },
     { "id": "rate-limiter", "type": "service", "label": "Rate Limiter", "importance": 0.6, "tags": ["security"] },
     { "id": "feature-flags", "type": "service", "label": "Feature Flags", "importance": 0.5 },
-
     { "id": "review-db", "type": "database", "label": "Review DB", "importance": 0.5 },
     { "id": "image-store", "type": "database", "label": "Image Store", "importance": 0.5 },
     { "id": "webhook-db", "type": "database", "label": "Webhook DB", "importance": 0.4 },
-
     { "id": "frank", "type": "person", "label": "Frank (Auth)", "importance": 0.55 },
     { "id": "grace", "type": "person", "label": "Grace (Search)", "importance": 0.55 },
     { "id": "heidi", "type": "person", "label": "Heidi (Mobile)", "importance": 0.55 },
     { "id": "ivan", "type": "person", "label": "Ivan (Payments)", "importance": 0.55 },
     { "id": "judy", "type": "person", "label": "Judy (Notif.)", "importance": 0.5 },
     { "id": "karl", "type": "person", "label": "Karl (Infra)", "importance": 0.55 },
-
     { "id": "ml-pipeline", "type": "service", "label": "ML Pipeline", "importance": 0.6 },
     { "id": "model-store", "type": "database", "label": "Model Store", "importance": 0.5 },
     { "id": "ab-test-svc", "type": "service", "label": "A/B Testing", "importance": 0.5 },
     { "id": "config-svc", "type": "service", "label": "Config Service", "importance": 0.55 },
     { "id": "secrets-mgr", "type": "service", "label": "Secrets Manager", "importance": 0.65, "tags": ["security"] },
-
     { "id": "lisa", "type": "person", "label": "Lisa (DevOps)", "importance": 0.55 },
     { "id": "mike", "type": "person", "label": "Mike (ML Eng)", "importance": 0.55 }
   ],
@@ -131,21 +121,21 @@
         { "id": "d31", "source": "ab-test-svc", "target": "analytics-db", "type": "depends_on" },
         { "id": "d32", "source": "web-app", "target": "cdn", "type": "depends_on" }
       ],
-      "fields": [
+      "groups": [
         {
           "id": "f-core", "label": "Core Services",
           "nodeIds": ["api-gateway", "auth-svc", "user-svc", "rate-limiter", "cache", "config-svc", "secrets-mgr"],
-          "color": [80, 140, 255], "sdf": { "radius": 10, "blendFactor": 5, "transparency": 0.6 }
+          "color": [0.31, 0.55, 1.0], "params": { "radius": 10, "blendFactor": 5, "transparency": 0.6 }
         },
         {
           "id": "f-commerce", "label": "Commerce",
           "nodeIds": ["order-svc", "payment-svc", "inventory-svc", "shipping-svc", "tax-svc"],
-          "color": [255, 140, 60], "sdf": { "radius": 8, "blendFactor": 4, "transparency": 0.6 }
+          "color": [1.0, 0.55, 0.24], "params": { "radius": 8, "blendFactor": 4, "transparency": 0.6 }
         },
         {
           "id": "f-data", "label": "Data Layer",
           "nodeIds": ["user-db", "order-db", "inventory-db", "analytics-db", "search-index", "session-store", "review-db", "image-store", "webhook-db", "model-store"],
-          "color": [60, 200, 130], "sdf": { "radius": 9, "blendFactor": 4, "transparency": 0.5 }
+          "color": [0.24, 0.78, 0.51], "params": { "radius": 9, "blendFactor": 4, "transparency": 0.5 }
         }
       ],
       "layout": { "algorithm": "force-directed" }
@@ -174,16 +164,16 @@
         { "id": "df17", "source": "monitoring-svc", "target": "analytics-db", "type": "data_flow" },
         { "id": "df18", "source": "event-bus", "target": "logging-svc", "type": "data_flow" }
       ],
-      "fields": [
+      "groups": [
         {
           "id": "f-event", "label": "Event-Driven",
           "nodeIds": ["event-bus", "analytics-svc", "notification-svc", "search-svc", "logging-svc", "monitoring-svc"],
-          "color": [255, 200, 80], "sdf": { "radius": 9, "blendFactor": 4, "transparency": 0.55 }
+          "color": [1.0, 0.78, 0.31], "params": { "radius": 9, "blendFactor": 4, "transparency": 0.55 }
         },
         {
           "id": "f-ml", "label": "ML Pipeline",
           "nodeIds": ["ml-pipeline", "recommendation-svc", "model-store", "analytics-db", "ab-test-svc"],
-          "color": [200, 80, 255], "sdf": { "radius": 7, "blendFactor": 3, "transparency": 0.55 }
+          "color": [0.78, 0.31, 1.0], "params": { "radius": 7, "blendFactor": 3, "transparency": 0.55 }
         }
       ],
       "layout": { "algorithm": "force-directed" }
@@ -226,26 +216,26 @@
         { "id": "o31", "source": "mike", "target": "ml-pipeline", "type": "owns" },
         { "id": "o32", "source": "mike", "target": "model-store", "type": "owns" }
       ],
-      "fields": [
+      "groups": [
         {
           "id": "f-platform", "label": "Platform Team",
           "nodeIds": ["alice", "frank", "karl", "api-gateway", "auth-svc", "cache", "config-svc", "event-bus", "task-queue", "rate-limiter", "secrets-mgr"],
-          "color": [100, 160, 255], "sdf": { "radius": 10, "blendFactor": 5, "transparency": 0.55 }
+          "color": [0.39, 0.63, 1.0], "params": { "radius": 10, "blendFactor": 5, "transparency": 0.55 }
         },
         {
           "id": "f-commerce-team", "label": "Commerce Team",
           "nodeIds": ["bob", "ivan", "order-svc", "payment-svc", "inventory-svc", "shipping-svc", "tax-svc"],
-          "color": [255, 160, 80], "sdf": { "radius": 8, "blendFactor": 4, "transparency": 0.55 }
+          "color": [1.0, 0.63, 0.31], "params": { "radius": 8, "blendFactor": 4, "transparency": 0.55 }
         },
         {
           "id": "f-frontend-team", "label": "Frontend Team",
           "nodeIds": ["carol", "heidi", "web-app", "mobile-app", "admin-panel"],
-          "color": [255, 220, 80], "sdf": { "radius": 7, "blendFactor": 3, "transparency": 0.55 }
+          "color": [1.0, 0.86, 0.31], "params": { "radius": 7, "blendFactor": 3, "transparency": 0.55 }
         },
         {
           "id": "f-data-team", "label": "Data Team",
           "nodeIds": ["dave", "grace", "mike", "analytics-svc", "search-svc", "recommendation-svc", "ml-pipeline"],
-          "color": [160, 100, 255], "sdf": { "radius": 8, "blendFactor": 4, "transparency": 0.55 }
+          "color": [0.63, 0.39, 1.0], "params": { "radius": 8, "blendFactor": 4, "transparency": 0.55 }
         }
       ],
       "layout": { "algorithm": "force-directed" }
@@ -268,16 +258,16 @@
         { "id": "dp11", "source": "feature-flags", "target": "production", "type": "deploys_to" },
         { "id": "dp12", "source": "ab-test-svc", "target": "production", "type": "deploys_to" }
       ],
-      "fields": [
+      "groups": [
         {
           "id": "f-prod", "label": "Production",
           "nodeIds": ["production", "api-gateway", "auth-svc", "order-svc", "payment-svc", "monitoring-svc", "logging-svc"],
-          "color": [255, 80, 80], "sdf": { "radius": 10, "blendFactor": 5, "transparency": 0.5 }
+          "color": [1.0, 0.31, 0.31], "params": { "radius": 10, "blendFactor": 5, "transparency": 0.5 }
         },
         {
           "id": "f-pipeline", "label": "CI/CD",
           "nodeIds": ["ci-cd", "staging", "feature-flags", "ab-test-svc"],
-          "color": [80, 200, 200], "sdf": { "radius": 6, "blendFactor": 3, "transparency": 0.5 }
+          "color": [0.31, 0.78, 0.78], "params": { "radius": 6, "blendFactor": 3, "transparency": 0.5 }
         }
       ],
       "layout": { "algorithm": "force-directed" }

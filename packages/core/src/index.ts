@@ -1,6 +1,7 @@
 // Types
 export type {
-  NodeCore, Edge, Context, SDFFieldDef, SDFParams,
+  NodeCore, Edge, Context, VisualGroup, VisualGroupParams,
+  SDFFieldDef, SDFParams, // deprecated aliases
   NodeTypeDefinition, EdgeTypeDefinition,
   QualiaGraphJSON, QualiaEvent, TimestampedEvent, QualiaState,
   LayoutConfig, VisualMapping, CameraState, AgentBehavior,

@@ -1,10 +1,10 @@
 import type {
-  NodeCore, Edge, Context, SDFFieldDef, LayoutConfig,
+  NodeCore, Edge, Context, VisualGroup, LayoutConfig,
   NodeTypeDefinition, EdgeTypeDefinition, QualiaGraphJSON, AgentBehavior,
 } from './types';
 
 /**
- * Core graph data structure. Holds nodes (universal), contexts (each with own edges/fields),
+ * Core graph data structure. Holds nodes (universal), contexts (each with own edges/groups),
  * and type registries. Mutations are called by reducers only.
  */
 export class Graph {
@@ -43,11 +43,11 @@ export class Graph {
 
   removeNode(id: string): void {
     this.nodes.delete(id);
-    // Remove from all context edges and fields
+    // Remove from all context edges and groups
     for (const ctx of this.contexts.values()) {
       ctx.edges = ctx.edges.filter(e => e.source !== id && e.target !== id);
-      for (const field of ctx.fields) {
-        field.nodeIds = field.nodeIds.filter(nid => nid !== id);
+      for (const group of ctx.groups) {
+        group.nodeIds = group.nodeIds.filter(nid => nid !== id);
       }
     }
   }
@@ -105,21 +105,21 @@ export class Graph {
     ctx.edges = ctx.edges.filter(e => e.id !== edgeId);
   }
 
-  // --- Field operations ---
+  // --- Group operations ---
 
-  addField(contextId: string, field: SDFFieldDef): void {
+  addGroup(contextId: string, group: VisualGroup): void {
     const ctx = this.contexts.get(contextId);
     if (!ctx) return;
-    ctx.fields.push(field);
+    ctx.groups.push(group);
   }
 
-  updateField(contextId: string, fieldId: string, updates: Partial<SDFFieldDef>): void {
+  updateGroup(contextId: string, groupId: string, updates: Partial<VisualGroup>): void {
     const ctx = this.contexts.get(contextId);
     if (!ctx) return;
-    const field = ctx.fields.find(f => f.id === fieldId);
-    if (!field) return;
-    Object.assign(field, updates);
-    field.id = fieldId;
+    const group = ctx.groups.find(g => g.id === groupId);
+    if (!group) return;
+    Object.assign(group, updates);
+    group.id = groupId;
   }
 
   // --- Layout positions ---
@@ -136,8 +136,8 @@ export class Graph {
     return this.contexts.get(contextId)?.edges ?? [];
   }
 
-  getContextFields(contextId: string): SDFFieldDef[] {
-    return this.contexts.get(contextId)?.fields ?? [];
+  getContextGroups(contextId: string): VisualGroup[] {
+    return this.contexts.get(contextId)?.groups ?? [];
   }
 
   getNodeNeighbors(contextId: string, nodeId: string): string[] {
@@ -169,8 +169,19 @@ export class Graph {
   }
 
   /**
+   * Migrate a color from 0-255 range to 0-1 range if needed.
+   */
+  private static _migrateColor(color: [number, number, number]): [number, number, number] {
+    if (color.some(c => c > 1)) {
+      return [color[0] / 255, color[1] / 255, color[2] / 255];
+    }
+    return color;
+  }
+
+  /**
    * Load from QualiaGraphJSON. Handles backward-compat auto-wrapping:
-   * if contexts is empty but top-level edges/fields exist, wrap into "default" context.
+   * if contexts is empty but top-level edges/fields/groups exist, wrap into "default" context.
+   * Also migrates old "fields"+"sdf" format to "groups"+"params".
    */
   loadFromJSON(json: QualiaGraphJSON): void {
     this.clear();
@@ -186,6 +197,34 @@ export class Graph {
     // Load contexts
     if (json.contexts && json.contexts.length > 0) {
       for (const ctxJson of json.contexts) {
+        // Migrate groups: prefer "groups", fall back to "fields" (old format)
+        let groups: VisualGroup[];
+        if (ctxJson.groups && ctxJson.groups.length > 0) {
+          groups = ctxJson.groups.map(g => ({
+            id: g.id,
+            label: g.label,
+            nodeIds: g.nodeIds,
+            color: Graph._migrateColor(g.color),
+            params: g.params,
+          }));
+        } else if (ctxJson.fields && ctxJson.fields.length > 0) {
+          groups = ctxJson.fields.map(f => ({
+            id: f.id,
+            label: f.label,
+            nodeIds: f.nodeIds,
+            color: Graph._migrateColor(f.color),
+            params: {
+              radius: f.sdf.radius,
+              blendFactor: f.sdf.blendFactor,
+              transparency: f.sdf.transparency,
+              noise: f.sdf.noise,
+              contourLines: f.sdf.contourLines,
+            },
+          }));
+        } else {
+          groups = [];
+        }
+
         const ctx: Context = {
           id: ctxJson.id,
           label: ctxJson.label,
@@ -202,19 +241,7 @@ export class Graph {
             behavior: e.behavior ?? null,
             state: e.state ?? {},
           })),
-          fields: (ctxJson.fields ?? []).map(f => ({
-            id: f.id,
-            label: f.label,
-            nodeIds: f.nodeIds,
-            color: f.color,
-            sdf: {
-              radius: f.sdf.radius,
-              blendFactor: f.sdf.blendFactor,
-              transparency: f.sdf.transparency,
-              noise: f.sdf.noise,
-              contourLines: f.sdf.contourLines,
-            },
-          })),
+          groups,
           layout: ctxJson.layout,
           visualMapping: ctxJson.visualMapping,
           camera: ctxJson.camera,
@@ -222,8 +249,37 @@ export class Graph {
         };
         this.contexts.set(ctx.id, ctx);
       }
-    } else if (json.edges || json.fields) {
-      // Backward compat: auto-wrap top-level edges/fields into a "default" context
+    } else if (json.edges || json.fields || json.groups) {
+      // Backward compat: auto-wrap top-level edges/fields/groups into a "default" context
+      let groups: VisualGroup[];
+      if (json.groups && json.groups.length > 0) {
+        groups = json.groups.map(g => ({
+          id: g.id,
+          label: g.label,
+          nodeIds: g.nodeIds,
+          color: Graph._migrateColor(g.color),
+          params: {
+            radius: g.params?.radius ?? 5,
+            blendFactor: g.params?.blendFactor ?? 0.5,
+            transparency: g.params?.transparency ?? 0.3,
+          },
+        }));
+      } else if (json.fields && json.fields.length > 0) {
+        groups = json.fields.map(f => ({
+          id: f.id,
+          label: f.label,
+          nodeIds: f.nodeIds,
+          color: Graph._migrateColor(f.color),
+          params: {
+            radius: f.sdf?.radius ?? 5,
+            blendFactor: f.sdf?.blendFactor ?? 0.5,
+            transparency: f.sdf?.transparency ?? 0.3,
+          },
+        }));
+      } else {
+        groups = [];
+      }
+
       const defaultCtx: Context = {
         id: 'default',
         label: 'Default',
@@ -236,17 +292,7 @@ export class Graph {
           behavior: null,
           state: {},
         })),
-        fields: (json.fields ?? []).map(f => ({
-          id: f.id,
-          label: f.label,
-          nodeIds: f.nodeIds,
-          color: f.color,
-          sdf: {
-            radius: f.sdf?.radius ?? 5,
-            blendFactor: f.sdf?.blendFactor ?? 0.5,
-            transparency: f.sdf?.transparency ?? 0.3,
-          },
-        })),
+        groups,
         layout: { algorithm: 'force-directed' },
       };
       this.contexts.set('default', defaultCtx);

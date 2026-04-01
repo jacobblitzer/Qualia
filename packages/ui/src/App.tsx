@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { EventStore, importGraph, exportQualiaJSON, LayoutEngine } from '@qualia/core';
-import { DISPLAY_MODES } from '@qualia/renderer';
 import { StoreContext } from './StoreContext';
 import { DebugProvider, useDebug } from './DebugContext';
 import { Viewport } from './Viewport';
@@ -158,17 +157,6 @@ function AppInner() {
     renderer?.resetCamera(0.6);
   }, [renderer]);
 
-  const handleDisplayMode = useCallback((index: number) => {
-    const mode = DISPLAY_MODES[index];
-    if (mode && renderer) {
-      renderer.applyDisplayMode(mode.settings);
-      // Display modes can carry a theme setting
-      if (mode.settings.theme) {
-        setTheme(mode.settings.theme);
-      }
-    }
-  }, [renderer]);
-
   const toggleTheme = useCallback(() => {
     setTheme(t => t === 'dark' ? 'light' : 'dark');
   }, []);
@@ -182,8 +170,7 @@ function AppInner() {
     onToggleDebug: toggleDebug,
     onFitToView: handleFitToView,
     onResetCamera: handleResetCamera,
-    onDisplayMode: handleDisplayMode,
-  }), [handleImport, handleExport, cycleContext, toggleSuperposition, toggleDebug, handleFitToView, handleResetCamera, handleDisplayMode]);
+  }), [handleImport, handleExport, cycleContext, toggleSuperposition, toggleDebug, handleFitToView, handleResetCamera]);
 
   useKeyboard(store, keyboardCallbacks);
 

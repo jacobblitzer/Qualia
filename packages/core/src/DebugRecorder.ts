@@ -20,8 +20,8 @@ export interface RecorderConfig {
   captureOnGraphLoad: boolean;
   /** Capture on GRAPH_CLEAR events */
   captureOnGraphClear: boolean;
-  /** Capture on FIELD_ADD / FIELD_UPDATE events */
-  captureOnFieldChange: boolean;
+  /** Capture on GROUP_ADD / GROUP_UPDATE events */
+  captureOnGroupChange: boolean;
   /** Capture on console errors */
   captureOnError: boolean;
   /** Capture screenshots with each capture */
@@ -55,7 +55,7 @@ const DEFAULT_CONFIG: RecorderConfig = {
   captureOnContextSwitch: true,
   captureOnGraphLoad: true,
   captureOnGraphClear: true,
-  captureOnFieldChange: true,
+  captureOnGroupChange: true,
   captureOnError: true,
   captureScreenshots: true,
   periodicIntervalSec: 30,
@@ -69,7 +69,7 @@ const MAJOR_EVENTS = new Set<QualiaEvent['type']>([
 // Events that trigger captures
 const TRIGGER_EVENTS = new Set<QualiaEvent['type']>([
   'CONTEXT_SWITCH', 'GRAPH_LOAD', 'GRAPH_CLEAR',
-  'FIELD_ADD', 'FIELD_UPDATE',
+  'GROUP_ADD', 'GROUP_UPDATE',
 ]);
 
 const COALESCE_MS = 200;
@@ -229,7 +229,7 @@ export class DebugRecorder {
       if (type === 'CONTEXT_SWITCH' && !this._config.captureOnContextSwitch) return;
       if (type === 'GRAPH_LOAD' && !this._config.captureOnGraphLoad) return;
       if (type === 'GRAPH_CLEAR' && !this._config.captureOnGraphClear) return;
-      if ((type === 'FIELD_ADD' || type === 'FIELD_UPDATE') && !this._config.captureOnFieldChange) return;
+      if ((type === 'GROUP_ADD' || type === 'GROUP_UPDATE') && !this._config.captureOnGroupChange) return;
 
       this._scheduleCapture(type.toLowerCase().replace(/_/g, '-'));
     });

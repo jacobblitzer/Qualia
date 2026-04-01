@@ -1,4 +1,4 @@
-import type { QualiaEvent, TimestampedEvent, QualiaState, QualiaGraphJSON, NodeCore, Edge, Context, SDFFieldDef } from './types';
+import type { QualiaEvent, TimestampedEvent, QualiaState, QualiaGraphJSON, NodeCore, Edge, Context, VisualGroup } from './types';
 import { Graph } from './Graph';
 import { applyEvent, computeInverse } from './reducers';
 
@@ -225,16 +225,16 @@ export class EventStore {
   }
 
   /**
-   * Get all SDF fields for active context.
+   * Get all visual groups for active context.
    */
-  getActiveFields(): SDFFieldDef[] {
+  getActiveGroups(): VisualGroup[] {
     if (this.state.activeContextId) {
-      return this.graph.getContextFields(this.state.activeContextId);
+      return this.graph.getContextGroups(this.state.activeContextId);
     }
-    // Superposition: all fields from all contexts
-    const all: SDFFieldDef[] = [];
+    // Superposition: all groups from all contexts
+    const all: VisualGroup[] = [];
     for (const ctx of this.state.contexts.values()) {
-      all.push(...ctx.fields);
+      all.push(...ctx.groups);
     }
     return all;
   }

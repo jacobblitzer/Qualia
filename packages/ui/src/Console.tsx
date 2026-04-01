@@ -249,8 +249,8 @@ function DebugTabView() {
           onChange={v => handleConfigChange('captureOnGraphLoad', v)} />
         <ConfigCheck label="Graph Clear" checked={config.captureOnGraphClear}
           onChange={v => handleConfigChange('captureOnGraphClear', v)} />
-        <ConfigCheck label="Field Change" checked={config.captureOnFieldChange}
-          onChange={v => handleConfigChange('captureOnFieldChange', v)} />
+        <ConfigCheck label="Group Change" checked={config.captureOnGroupChange}
+          onChange={v => handleConfigChange('captureOnGroupChange', v)} />
         <ConfigCheck label="On Error" checked={config.captureOnError}
           onChange={v => handleConfigChange('captureOnError', v)} />
         <ConfigCheck label="Screenshots" checked={config.captureScreenshots}

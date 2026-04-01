@@ -3,7 +3,6 @@ import type { Vec3, CameraState } from '@qualia/core';
 /**
  * Animates transitions between context states:
  * - Node positions lerp
- * - SDF field cross-fade
  * - Edge cross-fade
  * - Camera animation
  */
@@ -16,17 +15,12 @@ export class ContextTransition {
   private _toPositions: Record<string, [number, number, number]> = {};
   private _currentPositions: Record<string, [number, number, number]> = {};
 
-  private _fromFieldIntensity = 0.7;
-  private _toFieldIntensity = 0.7;
-  private _currentFieldIntensity = 0.7;
-
   private _fromEdgeOpacity = 0.6;
   private _toEdgeOpacity = 0.6;
   private _currentEdgeOpacity = 0.6;
 
   get isActive(): boolean { return this._active; }
   get positions(): Record<string, [number, number, number]> { return this._currentPositions; }
-  get fieldIntensity(): number { return this._currentFieldIntensity; }
   get edgeOpacity(): number { return this._currentEdgeOpacity; }
   get progress(): number { return this._progress; }
 
@@ -45,9 +39,7 @@ export class ContextTransition {
     this._progress = 0;
     this._active = true;
 
-    // During transition: fade edges/fields out then in
-    this._fromFieldIntensity = 0.7;
-    this._toFieldIntensity = isSuperposition ? 0.2 : 0.7;
+    // During transition: fade edges out then in
     this._fromEdgeOpacity = 0.6;
     this._toEdgeOpacity = isSuperposition ? 0.15 : 0.6;
   }
@@ -86,12 +78,7 @@ export class ContextTransition {
       ];
     }
 
-    // Cross-fade field/edge intensity (dip to half at midpoint)
-    const fadeT = t < 0.5
-      ? 1 - t * 2 * 0.5  // Fade out to 50%
-      : 0.5 + (t - 0.5) * 2 * 0.5; // Fade back in
-    this._currentFieldIntensity = this._fromFieldIntensity +
-      (this._toFieldIntensity - this._fromFieldIntensity) * t;
+    // Cross-fade edge opacity
     this._currentEdgeOpacity = this._fromEdgeOpacity +
       (this._toEdgeOpacity - this._fromEdgeOpacity) * t;
   }

@@ -14,10 +14,7 @@ export interface FrameTelemetry {
   memoryMB: number;
   nodeCount: number;
   edgeCount: number;
-  fieldCount: number;
-  sdfNodeCount: number;
-  sdfResolution: [number, number];
-  sdfIntensity: number;
+  groupCount: number;
   cameraPosition: [number, number, number];
   cameraTarget: [number, number, number];
   activeContextId: string | null;

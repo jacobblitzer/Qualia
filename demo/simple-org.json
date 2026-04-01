@@ -44,18 +44,18 @@
         { "id": "e10", "source": "karl", "target": "bob", "type": "reports_to" },
         { "id": "e11", "source": "lisa", "target": "dave", "type": "reports_to" }
       ],
-      "fields": [
+      "groups": [
         {
           "id": "f-eng", "label": "Engineering",
           "nodeIds": ["bob", "dave", "frank", "grace", "ivan", "karl", "lisa"],
-          "color": [60, 120, 255],
-          "sdf": { "radius": 8, "blendFactor": 4, "transparency": 0.6 }
+          "color": [0.24, 0.47, 1.0],
+          "params": { "radius": 8, "blendFactor": 4, "transparency": 0.6 }
         },
         {
           "id": "f-design", "label": "Design",
           "nodeIds": ["carol", "eve", "heidi"],
-          "color": [255, 100, 160],
-          "sdf": { "radius": 6, "blendFactor": 3, "transparency": 0.6 }
+          "color": [1.0, 0.39, 0.63],
+          "params": { "radius": 6, "blendFactor": 3, "transparency": 0.6 }
         }
       ],
       "layout": { "algorithm": "force-directed" }
@@ -77,18 +77,18 @@
         { "id": "s11", "source": "lisa", "target": "grace", "type": "social", "weight": 0.8 },
         { "id": "s12", "source": "ivan", "target": "frank", "type": "social", "weight": 0.6 }
       ],
-      "fields": [
+      "groups": [
         {
           "id": "f-lunch", "label": "Lunch Crew",
           "nodeIds": ["frank", "grace", "karl", "ivan", "lisa"],
-          "color": [255, 180, 40],
-          "sdf": { "radius": 7, "blendFactor": 3.5, "transparency": 0.5 }
+          "color": [1.0, 0.71, 0.16],
+          "params": { "radius": 7, "blendFactor": 3.5, "transparency": 0.5 }
         },
         {
           "id": "f-coffee", "label": "Coffee Group",
           "nodeIds": ["alice", "carol", "judy", "eve"],
-          "color": [180, 80, 255],
-          "sdf": { "radius": 6, "blendFactor": 3, "transparency": 0.5 }
+          "color": [0.71, 0.31, 1.0],
+          "params": { "radius": 6, "blendFactor": 3, "transparency": 0.5 }
         }
       ],
       "layout": { "algorithm": "force-directed" }

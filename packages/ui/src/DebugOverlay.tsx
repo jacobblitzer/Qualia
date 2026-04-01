@@ -56,13 +56,10 @@ export function DebugOverlay() {
       <div className="debug-overlay-section">
         <Row label="Nodes" value={String(telemetry.nodeCount)} />
         <Row label="Edges" value={String(telemetry.edgeCount)} />
-        <Row label="Fields" value={String(telemetry.fieldCount)} />
-        <Row label="SDF Nodes" value={String(telemetry.sdfNodeCount)} />
+        <Row label="Groups" value={String(telemetry.groupCount)} />
       </div>
       <div className="debug-overlay-divider" />
       <div className="debug-overlay-section">
-        <Row label="SDF Res" value={`${telemetry.sdfResolution[0]}x${telemetry.sdfResolution[1]}`} />
-        <Row label="SDF Intensity" value={telemetry.sdfIntensity.toFixed(2)} />
         <Row label="Geometries" value={String(telemetry.geometries)} />
         <Row label="Textures" value={String(telemetry.textures)} />
         <Row label="Programs" value={String(telemetry.programs)} />

@@ -1,4 +1,4 @@
-import type { QualiaGraphJSON, NodeCore, Edge, Context, SDFFieldDef } from './types';
+import type { QualiaGraphJSON, NodeCore, Edge, Context, VisualGroup } from './types';
 import type { Graph } from './Graph';
 
 // ============================================================================
@@ -168,7 +168,7 @@ function importObsidianCanvas(canvas: {
       id: 'canvas',
       label: 'Canvas',
       edges: edges.map(e => ({ ...e, behavior: null, state: {} })),
-      fields: [],
+      groups: [],
       layout: { algorithm: 'manual' },
       positions,
     }],
@@ -212,7 +212,7 @@ export function exportQualiaJSON(graph: Graph): QualiaGraphJSON {
       behavior: e.behavior,
       state: Object.keys(e.state).length > 0 ? e.state : undefined,
     })),
-    fields: ctx.fields,
+    groups: ctx.groups,
     layout: ctx.layout,
     visualMapping: ctx.visualMapping,
     camera: ctx.camera,

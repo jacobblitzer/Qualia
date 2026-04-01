@@ -1,6 +1,5 @@
 import type { EventStore } from '@qualia/core';
 import { SceneManager } from './SceneManager';
-import type { DisplayModeSettings } from './displayModes';
 
 type NodeCallback = (nodeId: string) => void;
 type EdgeCallback = (edgeId: string) => void;
@@ -107,10 +106,6 @@ export class QualiaRenderer {
   }
 
   applyViewerSettings(settings: Parameters<SceneManager['applyViewerSettings']>[0]): void {
-    this._scene.applyViewerSettings(settings);
-  }
-
-  applyDisplayMode(settings: DisplayModeSettings): void {
     this._scene.applyViewerSettings(settings);
   }
 
