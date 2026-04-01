@@ -13,6 +13,7 @@ export class EdgeMesh {
   private _geometry: LineSegmentsGeometry;
   private _material: LineMaterial;
   private _count = 0;
+  private _lightMode = false;
 
   get count(): number { return this._count; }
 
@@ -21,7 +22,7 @@ export class EdgeMesh {
 
     this._material = new LineMaterial({
       color: 0xffffff,
-      linewidth: 2,
+      linewidth: 3,
       vertexColors: true,
       transparent: true,
       opacity: 0.6,
@@ -66,6 +67,11 @@ export class EdgeMesh {
       const confidence = edge.confidence ?? 1;
       color.multiplyScalar(confidence);
 
+      // Light mode: boost brightness for visibility on light backgrounds
+      if (this._lightMode) {
+        color.multiplyScalar(0.7); // Darken for contrast
+      }
+
       if (isSelected) {
         color.set('#4ff0c1');
         color.multiplyScalar(2.0);
@@ -98,6 +104,10 @@ export class EdgeMesh {
 
   getLineWidth(): number {
     return this._material.linewidth;
+  }
+
+  setLightMode(isLight: boolean): void {
+    this._lightMode = isLight;
   }
 
   /**

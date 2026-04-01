@@ -7,7 +7,7 @@ const MAX_FIELDS = 8;
 const TEX_SIZE = 64; // 64x64 = 4096 max nodes in SDF
 
 /**
- * SDF ray marching pass. Renders at 1/4 resolution to a render target.
+ * SDF ray marching pass. Renders at configurable resolution to a render target.
  */
 export class SDFPass {
   private _material: THREE.ShaderMaterial;
@@ -18,6 +18,7 @@ export class SDFPass {
   private _nodeTexture: THREE.DataTexture;
   private _resDivisor = 4;
   private _resMultiplier = 0.25; // 0.25 = 1/4 res (matches divisor 4)
+  private _ready = false;
 
   get texture(): THREE.Texture {
     return this._renderTarget.texture;
@@ -70,11 +71,39 @@ export class SDFPass {
         uOpacityBoost: { value: 0.0 },
         uFresnelStrength: { value: 1.0 },
         uLightMode: { value: 0.0 },
+        // PBR material (off by default for perf)
+        uSpecularStrength: { value: 0.0 },
+        uRoughness: { value: 0.6 },
+        uMetalness: { value: 0.0 },
+        // Fog and ambient
         uFogDensity: { value: 0.001 },
         uFogColor: { value: new THREE.Vector3(0.039, 0.047, 0.063) }, // #0a0c10
         uAmbientBoost: { value: 0.0 },
+        // Global effect overrides
         uGlobalNoiseOverride: { value: -1.0 },
         uGlobalContourOverride: { value: -1.0 },
+        // Domain warp
+        uWarpEnabled: { value: 0.0 },
+        uWarpAmount: { value: 2.0 },
+        uWarpScale: { value: 0.1 },
+        uWarpSpeed: { value: 0.1 },
+        // Onion layers
+        uOnionEnabled: { value: 0.0 },
+        uOnionLayers: { value: 3.0 },
+        uOnionThickness: { value: 0.3 },
+        uOnionGap: { value: 1.0 },
+        // Interior fog
+        uInteriorFogEnabled: { value: 0.0 },
+        uInteriorFogDensity: { value: 0.5 },
+        // Color blending (0 = off/closest-wins, saves perf)
+        uColorBlendSharpness: { value: 0.0 },
+        // Fine-grained noise
+        uNoiseScale: { value: 0.15 },
+        uNoiseSpeed: { value: 0.05 },
+        // Fine-grained contour
+        uContourSpacing: { value: 0.0 }, // 0 = use per-field default
+        uContourWidth: { value: 0.0 },   // 0 = use default
+        uContourContrast: { value: 0.5 },
       },
       transparent: true,
       depthTest: false,
@@ -84,6 +113,15 @@ export class SDFPass {
     const geometry = new THREE.PlaneGeometry(2, 2);
     this._mesh = new THREE.Mesh(geometry, this._material);
     this._scene.add(this._mesh);
+
+    // Compile shader asynchronously so it doesn't block the main thread
+    this._renderer.compileAsync(this._scene, this._orthoCamera).then(() => {
+      this._ready = true;
+    });
+  }
+
+  get ready(): boolean {
+    return this._ready;
   }
 
   /**
@@ -160,6 +198,10 @@ export class SDFPass {
    * Render the SDF pass to its render target. Returns the texture.
    */
   render(camera: THREE.PerspectiveCamera, time: number): THREE.Texture {
+    if (!this._ready) {
+      return this._renderTarget.texture;
+    }
+
     this._material.uniforms.uCameraWorldMatrix.value.copy(camera.matrixWorld);
     this._material.uniforms.uCameraProjectionMatrixInverse.value.copy(
       camera.projectionMatrixInverse,
@@ -197,6 +239,8 @@ export class SDFPass {
     return this._material.uniforms.uGlobalIntensity.value as number;
   }
 
+  // --- Opacity / Fresnel ---
+
   setOpacityBoost(boost: number): void {
     this._material.uniforms.uOpacityBoost.value = Math.max(0, Math.min(1, boost));
   }
@@ -213,9 +257,39 @@ export class SDFPass {
     return this._material.uniforms.uFresnelStrength.value as number;
   }
 
+  // --- PBR Material ---
+
+  setSpecularStrength(v: number): void {
+    this._material.uniforms.uSpecularStrength.value = Math.max(0, Math.min(1, v));
+  }
+
+  getSpecularStrength(): number {
+    return this._material.uniforms.uSpecularStrength.value as number;
+  }
+
+  setRoughness(v: number): void {
+    this._material.uniforms.uRoughness.value = Math.max(0, Math.min(1, v));
+  }
+
+  getRoughness(): number {
+    return this._material.uniforms.uRoughness.value as number;
+  }
+
+  setMetalness(v: number): void {
+    this._material.uniforms.uMetalness.value = Math.max(0, Math.min(1, v));
+  }
+
+  getMetalness(): number {
+    return this._material.uniforms.uMetalness.value as number;
+  }
+
+  // --- Light Mode ---
+
   setLightMode(isLight: boolean): void {
     this._material.uniforms.uLightMode.value = isLight ? 1.0 : 0.0;
   }
+
+  // --- Resolution ---
 
   setResDivisor(divisor: number): void {
     this._resDivisor = Math.max(1, Math.round(divisor));
@@ -235,6 +309,8 @@ export class SDFPass {
     return this._resMultiplier;
   }
 
+  // --- Fog ---
+
   setFogDensity(density: number): void {
     this._material.uniforms.uFogDensity.value = density;
   }
@@ -247,12 +323,154 @@ export class SDFPass {
     this._material.uniforms.uAmbientBoost.value = boost;
   }
 
+  // --- Global Effect Overrides ---
+
   setGlobalNoiseOverride(value: number): void {
     this._material.uniforms.uGlobalNoiseOverride.value = value;
   }
 
   setGlobalContourOverride(value: number): void {
     this._material.uniforms.uGlobalContourOverride.value = value;
+  }
+
+  // --- Domain Warp ---
+
+  setWarpEnabled(enabled: boolean): void {
+    this._material.uniforms.uWarpEnabled.value = enabled ? 1.0 : 0.0;
+  }
+
+  getWarpEnabled(): boolean {
+    return (this._material.uniforms.uWarpEnabled.value as number) > 0.5;
+  }
+
+  setWarpAmount(v: number): void {
+    this._material.uniforms.uWarpAmount.value = v;
+  }
+
+  getWarpAmount(): number {
+    return this._material.uniforms.uWarpAmount.value as number;
+  }
+
+  setWarpScale(v: number): void {
+    this._material.uniforms.uWarpScale.value = v;
+  }
+
+  getWarpScale(): number {
+    return this._material.uniforms.uWarpScale.value as number;
+  }
+
+  setWarpSpeed(v: number): void {
+    this._material.uniforms.uWarpSpeed.value = v;
+  }
+
+  getWarpSpeed(): number {
+    return this._material.uniforms.uWarpSpeed.value as number;
+  }
+
+  // --- Onion Layers ---
+
+  setOnionEnabled(enabled: boolean): void {
+    this._material.uniforms.uOnionEnabled.value = enabled ? 1.0 : 0.0;
+  }
+
+  getOnionEnabled(): boolean {
+    return (this._material.uniforms.uOnionEnabled.value as number) > 0.5;
+  }
+
+  setOnionLayers(v: number): void {
+    this._material.uniforms.uOnionLayers.value = v;
+  }
+
+  getOnionLayers(): number {
+    return this._material.uniforms.uOnionLayers.value as number;
+  }
+
+  setOnionThickness(v: number): void {
+    this._material.uniforms.uOnionThickness.value = v;
+  }
+
+  getOnionThickness(): number {
+    return this._material.uniforms.uOnionThickness.value as number;
+  }
+
+  setOnionGap(v: number): void {
+    this._material.uniforms.uOnionGap.value = v;
+  }
+
+  getOnionGap(): number {
+    return this._material.uniforms.uOnionGap.value as number;
+  }
+
+  // --- Interior Fog ---
+
+  setInteriorFogEnabled(enabled: boolean): void {
+    this._material.uniforms.uInteriorFogEnabled.value = enabled ? 1.0 : 0.0;
+  }
+
+  getInteriorFogEnabled(): boolean {
+    return (this._material.uniforms.uInteriorFogEnabled.value as number) > 0.5;
+  }
+
+  setInteriorFogDensity(v: number): void {
+    this._material.uniforms.uInteriorFogDensity.value = v;
+  }
+
+  getInteriorFogDensity(): number {
+    return this._material.uniforms.uInteriorFogDensity.value as number;
+  }
+
+  // --- Color Blending ---
+
+  setColorBlendSharpness(v: number): void {
+    this._material.uniforms.uColorBlendSharpness.value = v;
+  }
+
+  getColorBlendSharpness(): number {
+    return this._material.uniforms.uColorBlendSharpness.value as number;
+  }
+
+  // --- Fine-Grained Noise ---
+
+  setNoiseScale(v: number): void {
+    this._material.uniforms.uNoiseScale.value = v;
+  }
+
+  getNoiseScale(): number {
+    return this._material.uniforms.uNoiseScale.value as number;
+  }
+
+  setNoiseSpeed(v: number): void {
+    this._material.uniforms.uNoiseSpeed.value = v;
+  }
+
+  getNoiseSpeed(): number {
+    return this._material.uniforms.uNoiseSpeed.value as number;
+  }
+
+  // --- Fine-Grained Contour ---
+
+  setContourSpacing(v: number): void {
+    this._material.uniforms.uContourSpacing.value = v;
+  }
+
+  getContourSpacing(): number {
+    return this._material.uniforms.uContourSpacing.value as number;
+  }
+
+  setContourWidth(v: number): void {
+    this._material.uniforms.uContourWidth.value = v;
+  }
+
+  getContourWidth(): number {
+    return this._material.uniforms.uContourWidth.value as number;
+  }
+
+  setContourContrast(v: number): void {
+    this._material.uniforms.uContourContrast.value = v;
+  }
+
+  getContourContrast(): number {
+    return this._material.uniforms.uContourContrast.value as number;
   }
 
   dispose(): void {

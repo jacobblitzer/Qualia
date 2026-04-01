@@ -531,6 +531,7 @@ export class SceneManager {
     this._isLightMode = isLight;
     this.sdfPass.setLightMode(isLight);
     this.labelLayer.setLightMode(isLight);
+    this.edgeMesh.setLightMode(isLight);
 
     if (isLight) {
       this.renderer.setClearColor(0xe8eaf0, 1);
@@ -586,6 +587,32 @@ export class SceneManager {
     noiseEnabled?: boolean;
     noiseGlobal?: number;
     contoursEnabled?: boolean;
+    // PBR material
+    specularStrength?: number;
+    roughness?: number;
+    metalness?: number;
+    // Domain warp
+    warpEnabled?: boolean;
+    warpAmount?: number;
+    warpScale?: number;
+    warpSpeed?: number;
+    // Onion layers
+    onionEnabled?: boolean;
+    onionLayers?: number;
+    onionThickness?: number;
+    onionGap?: number;
+    // Interior fog
+    interiorFogEnabled?: boolean;
+    interiorFogDensity?: number;
+    // Color blending
+    colorBlendSharpness?: number;
+    // Fine-grained noise
+    noiseScale?: number;
+    noiseSpeed?: number;
+    // Fine-grained contour
+    contourSpacing?: number;
+    contourWidth?: number;
+    contourContrast?: number;
   }): void {
     if (settings.sdfIntensity !== undefined) {
       this._sdfIntensityOverride = settings.sdfIntensity;
@@ -659,6 +686,70 @@ export class SceneManager {
       this.camera.far = settings.farPlane;
       this.camera.updateProjectionMatrix();
     }
+    // PBR material
+    if (settings.specularStrength !== undefined) {
+      this.sdfPass.setSpecularStrength(settings.specularStrength);
+    }
+    if (settings.roughness !== undefined) {
+      this.sdfPass.setRoughness(settings.roughness);
+    }
+    if (settings.metalness !== undefined) {
+      this.sdfPass.setMetalness(settings.metalness);
+    }
+    // Domain warp
+    if (settings.warpEnabled !== undefined) {
+      this.sdfPass.setWarpEnabled(settings.warpEnabled);
+    }
+    if (settings.warpAmount !== undefined) {
+      this.sdfPass.setWarpAmount(settings.warpAmount);
+    }
+    if (settings.warpScale !== undefined) {
+      this.sdfPass.setWarpScale(settings.warpScale);
+    }
+    if (settings.warpSpeed !== undefined) {
+      this.sdfPass.setWarpSpeed(settings.warpSpeed);
+    }
+    // Onion layers
+    if (settings.onionEnabled !== undefined) {
+      this.sdfPass.setOnionEnabled(settings.onionEnabled);
+    }
+    if (settings.onionLayers !== undefined) {
+      this.sdfPass.setOnionLayers(settings.onionLayers);
+    }
+    if (settings.onionThickness !== undefined) {
+      this.sdfPass.setOnionThickness(settings.onionThickness);
+    }
+    if (settings.onionGap !== undefined) {
+      this.sdfPass.setOnionGap(settings.onionGap);
+    }
+    // Interior fog
+    if (settings.interiorFogEnabled !== undefined) {
+      this.sdfPass.setInteriorFogEnabled(settings.interiorFogEnabled);
+    }
+    if (settings.interiorFogDensity !== undefined) {
+      this.sdfPass.setInteriorFogDensity(settings.interiorFogDensity);
+    }
+    // Color blending
+    if (settings.colorBlendSharpness !== undefined) {
+      this.sdfPass.setColorBlendSharpness(settings.colorBlendSharpness);
+    }
+    // Fine-grained noise
+    if (settings.noiseScale !== undefined) {
+      this.sdfPass.setNoiseScale(settings.noiseScale);
+    }
+    if (settings.noiseSpeed !== undefined) {
+      this.sdfPass.setNoiseSpeed(settings.noiseSpeed);
+    }
+    // Fine-grained contour
+    if (settings.contourSpacing !== undefined) {
+      this.sdfPass.setContourSpacing(settings.contourSpacing);
+    }
+    if (settings.contourWidth !== undefined) {
+      this.sdfPass.setContourWidth(settings.contourWidth);
+    }
+    if (settings.contourContrast !== undefined) {
+      this.sdfPass.setContourContrast(settings.contourContrast);
+    }
   }
 
   /**
@@ -682,6 +773,32 @@ export class SceneManager {
       farPlane: this.camera.far,
       gridVisible: this._grid.visible,
       theme: this._isLightMode ? 'light' as const : 'dark' as const,
+      // PBR material
+      specularStrength: this.sdfPass.getSpecularStrength(),
+      roughness: this.sdfPass.getRoughness(),
+      metalness: this.sdfPass.getMetalness(),
+      // Domain warp
+      warpEnabled: this.sdfPass.getWarpEnabled(),
+      warpAmount: this.sdfPass.getWarpAmount(),
+      warpScale: this.sdfPass.getWarpScale(),
+      warpSpeed: this.sdfPass.getWarpSpeed(),
+      // Onion layers
+      onionEnabled: this.sdfPass.getOnionEnabled(),
+      onionLayers: this.sdfPass.getOnionLayers(),
+      onionThickness: this.sdfPass.getOnionThickness(),
+      onionGap: this.sdfPass.getOnionGap(),
+      // Interior fog
+      interiorFogEnabled: this.sdfPass.getInteriorFogEnabled(),
+      interiorFogDensity: this.sdfPass.getInteriorFogDensity(),
+      // Color blending
+      colorBlendSharpness: this.sdfPass.getColorBlendSharpness(),
+      // Fine-grained noise
+      noiseScale: this.sdfPass.getNoiseScale(),
+      noiseSpeed: this.sdfPass.getNoiseSpeed(),
+      // Fine-grained contour
+      contourSpacing: this.sdfPass.getContourSpacing(),
+      contourWidth: this.sdfPass.getContourWidth(),
+      contourContrast: this.sdfPass.getContourContrast(),
     };
   }
 
