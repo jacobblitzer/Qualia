@@ -27,7 +27,7 @@ Drive Penumbra (the SDF rendering engine) from Qualia's `SceneManager` to render
 - [x] Disposal cleans up Penumbra GPU resources + backdrop geometry/material
 - [x] `npm run typecheck` clean
 - [x] `npm run build` succeeds
-- [ ] Host attaches a `PenumbraPass` (App.tsx wiring still pending)
+- [x] Host attaches a `PenumbraPass` — `packages/ui/src/Viewport.tsx` constructs a `PenumbraPass`, awaits ready, calls `sm.setPenumbraRenderer(pass)`, subscribes to store changes to push group/edge updates. Silent no-op if WebGPU unavailable.
 - [ ] Visual smoke test: skeleton blob visible, group-membership tinting visible
 - [ ] Performance check: 100 nodes / ~200 edges / 5 groups at 60fps
 - [ ] Encoding bridge (Phase 4): graph metrics → SDF material/effects parameters
