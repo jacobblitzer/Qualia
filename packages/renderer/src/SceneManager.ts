@@ -1,11 +1,13 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { EventStore, VisualGroup } from '@qualia/core';
+import { PenumbraPass } from '@penumbra/three';
 import { NodeMesh } from './NodeMesh';
 import { EdgeMesh } from './EdgeMesh';
 import { LabelLayer } from './LabelLayer';
 import { ContextTransition } from './ContextTransition';
 import { InteractionManager } from './InteractionManager';
+import { compileGroupsToScene } from './PenumbraGroupCompiler';
 
 /**
  * Orchestrates the entire Three.js scene: nodes, edges, labels,
@@ -41,6 +43,12 @@ export class SceneManager {
 
   // Override flags: when set, _syncVisuals won't clobber these values
   private _edgeOpacityOverride: number | null = null;
+
+  // Penumbra SDF integration (Phase 6) — null until enabled by host.
+  private _penumbra: PenumbraPass | null = null;
+  private _penumbraBackdrop: THREE.Mesh | null = null;
+  private _penumbraScene: THREE.Scene | null = null;
+  private _penumbraCamera: THREE.OrthographicCamera | null = null;
 
   // Light mode
   private _isLightMode = false;
@@ -208,8 +216,25 @@ export class SceneManager {
     const width = this._container.clientWidth;
     const height = this._container.clientHeight;
 
-    // Direct render to screen
-    this.renderer.render(this.scene, this.camera);
+    // Render Penumbra SDF backdrop first (if enabled). The result lands on
+    // pass.texture, which the backdrop quad samples. Three's main render
+    // then draws nodes/edges on top — depth compositing is "background
+    // behind opaque foreground" only; SDF cannot occlude meshes in v1.
+    // See @penumbra/three README for the depth-handoff caveat.
+    if (this._penumbra && this._penumbraScene && this._penumbraCamera) {
+      this.camera.updateMatrixWorld();
+      this.camera.updateProjectionMatrix();
+      this._penumbra.render(this.camera);
+
+      const autoClear = this.renderer.autoClear;
+      this.renderer.autoClear = true;
+      this.renderer.render(this._penumbraScene, this._penumbraCamera);
+      this.renderer.autoClear = false;
+      this.renderer.render(this.scene, this.camera);
+      this.renderer.autoClear = autoClear;
+    } else {
+      this.renderer.render(this.scene, this.camera);
+    }
 
     // Labels
     this.labelLayer.update(
@@ -574,14 +599,73 @@ export class SceneManager {
     };
   }
 
-  /** Future: integrate Penumbra SDF renderer */
-  setPenumbraRenderer(_renderer: unknown): void {
-    // Stub — Penumbra integration will be added later
+  /**
+   * Attach a Penumbra SDF renderer. Once attached, the render loop draws
+   * Penumbra's output as a fullscreen backdrop behind the Three.js scene.
+   *
+   * Pass `null` to detach (renderer falls back to direct Three render).
+   *
+   * Awaits PenumbraPass.ready() so the GPU device + WebGPU pipeline are
+   * live before any `updateVisualGroups()` call goes through.
+   */
+  async setPenumbraRenderer(pass: PenumbraPass | null): Promise<void> {
+    // Tear down any existing backdrop machinery first.
+    if (this._penumbraBackdrop) {
+      const mat = this._penumbraBackdrop.material as THREE.Material | THREE.Material[];
+      if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
+      else mat.dispose();
+      this._penumbraBackdrop.geometry.dispose();
+      this._penumbraBackdrop = null;
+    }
+    this._penumbraScene = null;
+    this._penumbraCamera = null;
+    this._penumbra = null;
+
+    if (!pass) return;
+
+    await pass.ready();
+    this._penumbra = pass;
+
+    // Fullscreen quad in its own scene with an orthographic camera. Sampling
+    // pass.texture maps Penumbra's output 1:1 to the viewport.
+    const backdropScene = new THREE.Scene();
+    const backdropCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const backdropGeom = new THREE.PlaneGeometry(2, 2);
+    const backdropMat = new THREE.MeshBasicMaterial({
+      map: pass.texture,
+      depthTest: false,
+      depthWrite: false,
+      transparent: false,
+    });
+    const backdropMesh = new THREE.Mesh(backdropGeom, backdropMat);
+    backdropScene.add(backdropMesh);
+
+    this._penumbraScene = backdropScene;
+    this._penumbraCamera = backdropCamera;
+    this._penumbraBackdrop = backdropMesh;
+
+    // Resize the pass to match the current canvas.
+    pass.resize(this.renderer.domElement.width, this.renderer.domElement.height);
+
+    // Push current visual groups, if any.
+    const groups = this._store.getActiveGroups();
+    if (groups.length > 0) await this._pushPenumbraScene(groups);
   }
 
-  /** Future: push visual group data to Penumbra */
-  updateVisualGroups(_groups: VisualGroup[]): void {
-    // Stub — will create/update Penumbra fields from group data
+  /**
+   * Recompile Visual Groups → SDFScene and push to Penumbra. Called by the
+   * host (App / Sidebar) when groups change. Safe to call before
+   * `setPenumbraRenderer` — becomes a no-op until a pass is attached.
+   */
+  async updateVisualGroups(groups: VisualGroup[]): Promise<void> {
+    if (!this._penumbra) return;
+    await this._pushPenumbraScene(groups);
+  }
+
+  private async _pushPenumbraScene(groups: VisualGroup[]): Promise<void> {
+    if (!this._penumbra) return;
+    const scene = compileGroupsToScene(groups, this._getCurrentPositions());
+    await this._penumbra.setScene(scene);
   }
 
   dispose(): void {
@@ -592,6 +676,17 @@ export class SceneManager {
     this.edgeMesh.dispose();
     this.labelLayer.dispose();
     this.interaction.dispose();
+    if (this._penumbra) {
+      this._penumbra.dispose();
+      this._penumbra = null;
+    }
+    if (this._penumbraBackdrop) {
+      const mat = this._penumbraBackdrop.material as THREE.Material | THREE.Material[];
+      if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
+      else mat.dispose();
+      this._penumbraBackdrop.geometry.dispose();
+      this._penumbraBackdrop = null;
+    }
     this.renderer.dispose();
   }
 }
