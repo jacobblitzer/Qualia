@@ -7,7 +7,7 @@ import { EdgeMesh } from './EdgeMesh';
 import { LabelLayer } from './LabelLayer';
 import { ContextTransition } from './ContextTransition';
 import { InteractionManager } from './InteractionManager';
-import { compileGroupsToScene } from './PenumbraGroupCompiler';
+import { compileGraphToScene } from './PenumbraNetworkCompiler';
 
 /**
  * Orchestrates the entire Three.js scene: nodes, edges, labels,
@@ -664,7 +664,8 @@ export class SceneManager {
 
   private async _pushPenumbraScene(groups: VisualGroup[]): Promise<void> {
     if (!this._penumbra) return;
-    const scene = compileGroupsToScene(groups, this._getCurrentPositions());
+    const edges = this._store.getActiveEdges();
+    const scene = compileGraphToScene(edges, groups, this._getCurrentPositions());
     await this._penumbra.setScene(scene);
   }
 
