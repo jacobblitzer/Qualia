@@ -123,6 +123,20 @@ export class QualiaRenderer {
     this._scene.setPerfSettings(partial);
   }
 
+  // --- Penumbra DisplayState bridge (Qualia ADR 0010) ---
+
+  listPenumbraPresets(): readonly string[] {
+    return this._scene.listPenumbraPresets();
+  }
+
+  loadPenumbraPreset(name: string): void {
+    this._scene.loadPenumbraPreset(name);
+  }
+
+  getPenumbraDisplayState(): unknown | null {
+    return this._scene.getPenumbraDisplayState();
+  }
+
   // --- Node display mode (ADR Qualia 0003) ---
 
   setNodeDisplayMode(mode: import('@qualia/core').NodeDisplayMode): void {

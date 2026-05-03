@@ -1373,6 +1373,38 @@ export class SceneManager {
     return { ...this._perf };
   }
 
+  // ─── Penumbra DisplayState bridge (ADR 0010 / Penumbra ADR 0011) ───────
+  // Qualia consumes Penumbra's DisplayState as the source of truth for
+  // Penumbra-controllable display knobs. Per-knob setters in this class
+  // (setRenderMode via setPerfSettings → particulate dispatch, etc.)
+  // route through Penumbra's DisplayState internally; these methods
+  // expose the preset surface for direct use by PerfPanel.
+
+  /** List the names of shipped Penumbra presets, for UI dropdowns. */
+  listPenumbraPresets(): readonly string[] {
+    if (!this._penumbra) return [];
+    const list = (this._penumbra as { listDisplayPresets?: () => readonly string[] }).listDisplayPresets;
+    return typeof list === 'function' ? list.call(this._penumbra) : [];
+  }
+
+  /** Apply a named Penumbra preset. No-op if the preset is unknown. */
+  loadPenumbraPreset(name: string): void {
+    if (!this._penumbra) return;
+    const fn = (this._penumbra as { loadDisplayPreset?: (n: string) => void }).loadDisplayPreset;
+    if (typeof fn === 'function') {
+      fn.call(this._penumbra, name);
+    } else {
+      console.warn('[Qualia] PenumbraPass.loadDisplayPreset missing — bump @penumbra/three');
+    }
+  }
+
+  /** Snapshot of the current Penumbra display state, or null if unavailable. */
+  getPenumbraDisplayState(): unknown | null {
+    if (!this._penumbra) return null;
+    const fn = (this._penumbra as { getDisplayState?: () => unknown }).getDisplayState;
+    return typeof fn === 'function' ? fn.call(this._penumbra) : null;
+  }
+
   /**
    * Update one or more perf toggles. Side-effects fire immediately:
    * subsystem visibility updates, Penumbra resolution rescales, and

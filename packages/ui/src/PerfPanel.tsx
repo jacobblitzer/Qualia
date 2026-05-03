@@ -64,6 +64,67 @@ function Slider({ label, hint, value, min, max, step, onChange, format }: Slider
   );
 }
 
+interface PenumbraPresetPickerProps {
+  renderer: QualiaRenderer;
+}
+
+/**
+ * Penumbra display-preset picker. Lists shipped presets from the runtime
+ * catalog (via the new `listDisplayPresets` API on PenumbraPass) and applies
+ * them via `loadDisplayPreset`. The applied preset overrides the axes it
+ * specifies; other axes (theme, scene visibility, halos) are preserved.
+ *
+ * Falls back gracefully if the renderer hasn't been bumped past Penumbra
+ * v0.1.13 yet — it simply shows an "Apply" disabled state and a hint.
+ */
+function PenumbraPresetPicker({ renderer }: PenumbraPresetPickerProps) {
+  const [names, setNames] = useState<readonly string[]>([]);
+  const [selected, setSelected] = useState<string>('');
+
+  useEffect(() => {
+    const list = renderer.listPenumbraPresets?.() ?? [];
+    setNames(list);
+    if (list.length > 0 && !selected) setSelected(list[0]);
+  }, [renderer, selected]);
+
+  const apply = useCallback(() => {
+    if (!selected) return;
+    renderer.loadPenumbraPreset?.(selected);
+  }, [renderer, selected]);
+
+  if (names.length === 0) {
+    return (
+      <div className="perf-section">
+        <div className="perf-section-title">Penumbra preset</div>
+        <div className="perf-toggle-hint">
+          Renderer doesn't expose presets yet — bump @penumbra/three to v0.1.13.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="perf-section">
+      <div className="perf-section-title">Penumbra preset</div>
+      <div className="perf-toggle-hint" style={{ marginBottom: 6 }}>
+        Loads a complete display configuration. Theme + Qualia overlays are preserved.
+      </div>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <select
+          value={selected}
+          onChange={(e) => setSelected(e.target.value)}
+          style={{ flex: 1 }}
+        >
+          {names.map((n) => (
+            <option key={n} value={n}>{n}</option>
+          ))}
+        </select>
+        <button onClick={apply}>Apply</button>
+      </div>
+    </div>
+  );
+}
+
 export function PerfPanel({ renderer, onClose }: PerfPanelProps) {
   const [perf, setPerf] = useState<PerfSettings>(() => renderer.getPerfSettings());
   const [fps, setFps] = useState<number>(0);
@@ -138,6 +199,8 @@ export function PerfPanel({ renderer, onClose }: PerfPanelProps) {
           <button onClick={allOff} title="Turn off everything expensive">Minimal</button>
           <button onClick={allOn} title="Restore defaults">All on</button>
         </div>
+
+        <PenumbraPresetPicker renderer={renderer} />
 
         <div className="perf-section">
           <div className="perf-section-title">Penumbra (SDF backdrop)</div>

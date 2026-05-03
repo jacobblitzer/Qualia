@@ -39,11 +39,21 @@ Qualia consumes [Penumbra](../Penumbra/) as its SDF rendering engine via the `@p
 
 `package.json` declares `@penumbra/{core,runtime,shaders,three}` as `file:../Penumbra/dist-pkg/penumbra-*.tgz`. **Both repos must be checked out as siblings** (`Penumbra/` and `Qualia/` under the same parent). This is true under `C:\Repos\` already.
 
-Current installed versions (as of 2026-05-02):
+Current installed versions (as of 2026-05-03):
 - `@penumbra/core` 0.1.2
-- `@penumbra/runtime` 0.1.9 (+ particulate render mode, atlas-seeded)
-- `@penumbra/shaders` 0.1.5
-- `@penumbra/three` 0.1.11 (+ depth output, ADR 0007 / Bug 0030)
+- `@penumbra/runtime` 0.1.11 (+ DisplayState + shipped preset catalog)
+- `@penumbra/shaders` 0.1.6
+- `@penumbra/three` 0.1.13 (+ getDisplayState / setDisplayState / loadDisplayPreset / onDisplayChange / listDisplayPresets pass-throughs)
+
+### Active architecture initiative — DisplayState (ADR 0010, proposed 2026-05-03)
+
+Adopting Penumbra ADR 0011's `DisplayState` model as Qualia's source of
+truth for Penumbra-controllable display knobs. `SceneManager.setPerfSettings`
+will dispatch through `_penumbra.setDisplayState(partial)` instead of the
+per-axis setters; PerfPanel grows a "Apply preset" dropdown. Qualia-only
+axes (theme, scene visibility, halo opacity) stay in `PerfSettings`. See
+`docs/decisions/0010-display-state-as-source-of-truth.md`. Sequenced after
+Penumbra ADR 0011 phases 1–4 land.
 
 Recent Penumbra capabilities Qualia consumes:
 - **Depth output** — `pass.depthTexture` (CanvasTexture wrapping 24-bit-packed NDC depth). Used by `PenumbraBackdropMaterial` for depth-aware composite (Bug 0023 fix).
