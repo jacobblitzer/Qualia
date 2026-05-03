@@ -1,11 +1,12 @@
 import React from 'react';
 import { useStore, useStoreVersion } from './StoreContext';
 import { useDebug } from './DebugContext';
+import { THEMES, nextTheme, type ThemeId } from '@qualia/core';
 
 interface ToolbarProps {
   onImport: () => void;
   onExport: () => void;
-  theme: 'dark' | 'light';
+  theme: ThemeId;
   onToggleTheme: () => void;
 }
 
@@ -13,6 +14,7 @@ export function Toolbar({ onImport, onExport, theme, onToggleTheme }: ToolbarPro
   const store = useStore();
   const version = useStoreVersion();
   const { debugEnabled, toggleDebug, activeSession } = useDebug();
+  const next = nextTheme(theme);
 
   return (
     <div className="qualia-toolbar">
@@ -46,9 +48,9 @@ export function Toolbar({ onImport, onExport, theme, onToggleTheme }: ToolbarPro
 
       <button
         onClick={onToggleTheme}
-        title="Toggle Light/Dark Theme"
+        title={`Theme: ${THEMES[theme].label} → click for ${THEMES[next].label}`}
       >
-        {theme === 'dark' ? 'Light' : 'Dark'}
+        {THEMES[next].label}
       </button>
 
       <button

@@ -3,5 +3,6 @@ dist/
 *.tsbuildinfo
 .vite/
 debug-logs/
+qualia-debug/
 
 nul

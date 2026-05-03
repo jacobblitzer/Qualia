@@ -8,9 +8,12 @@ import { Sidebar } from './Sidebar';
 import { PropertiesPanel } from './PropertiesPanel';
 import { ContextSwitcher } from './ContextSwitcher';
 import { Console } from './Console';
+import { THEMES, applyCssVars, nextTheme, type ThemeId } from '@qualia/core';
 import { DebugOverlay } from './DebugOverlay';
 import { DropZone } from './DropZone';
 import { StatusBar } from './StatusBar';
+import { FpsHud } from './FpsHud';
+import { CommandPalette, type PaletteCommand } from './CommandPalette';
 import { useKeyboard } from './useKeyboard';
 import './styles.css';
 
@@ -26,17 +29,23 @@ function AppInner() {
   const [store] = useState(() => new EventStore());
   const [layout] = useState(() => new LayoutEngine());
   const [consoleOpen, setConsoleOpen] = useState(false);
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [theme, setTheme] = useState<ThemeId>('dark');
   const [, setVersion] = useState(0);
   const { toggleDebug, setStore, renderer } = useDebug();
 
-  // Toggle theme class on root element and update renderer
+  // ADR 0008 — theme system. Apply CSS vars + push the full ThemeConfig
+  // through to the renderer (which mirrors to Penumbra). The legacy
+  // `qualia-light` class stays for one minor version; CSS that hard-coded
+  // light-mode rules can transition to `[data-theme="light"]` selectors.
   useEffect(() => {
+    const cfg = THEMES[theme];
+    applyCssVars(cfg);
     const root = document.getElementById('root');
     if (root) {
       root.classList.toggle('qualia-light', theme === 'light');
     }
-    renderer?.applyViewerSettings({ theme });
+    renderer?.applyTheme(cfg);
   }, [theme, renderer]);
 
   // Pass store to debug context for recorder
@@ -157,8 +166,9 @@ function AppInner() {
     renderer?.resetCamera(0.6);
   }, [renderer]);
 
+  // Three-state cycle: dark → light → monument → dark
   const toggleTheme = useCallback(() => {
-    setTheme(t => t === 'dark' ? 'light' : 'dark');
+    setTheme((t) => nextTheme(t));
   }, []);
 
   const keyboardCallbacks = useMemo(() => ({
@@ -170,7 +180,20 @@ function AppInner() {
     onToggleDebug: toggleDebug,
     onFitToView: handleFitToView,
     onResetCamera: handleResetCamera,
+    onTogglePalette: () => setPaletteOpen(v => !v),
   }), [handleImport, handleExport, cycleContext, toggleSuperposition, toggleDebug, handleFitToView, handleResetCamera]);
+
+  const paletteCommands = useMemo<PaletteCommand[]>(() => [
+    { id: 'cam.fit',   label: 'Fit to view',          hint: 'A',          group: 'action',  run: handleFitToView },
+    { id: 'cam.reset', label: 'Reset camera',         hint: 'Home',       group: 'action',  run: handleResetCamera },
+    { id: 'theme.cycle', label: 'Cycle theme',        hint: 'dark / light / monument', group: 'setting', run: () => setTheme((t) => nextTheme(t)) },
+    { id: 'console.toggle', label: 'Toggle console',  hint: '`',          group: 'action',  run: () => setConsoleOpen(v => !v) },
+    { id: 'debug.toggle',   label: 'Toggle debug',    hint: 'Ctrl+Shift+D', group: 'action', run: toggleDebug },
+    { id: 'super.toggle',   label: 'Toggle superposition', hint: 'Space', group: 'action',  run: toggleSuperposition },
+    { id: 'ctx.cycle',      label: 'Cycle context',   hint: 'Tab',        group: 'action',  run: cycleContext },
+    { id: 'import',  label: 'Import JSON',            hint: 'Ctrl+I',     group: 'action',  run: handleImport },
+    { id: 'export',  label: 'Export JSON',            hint: 'Ctrl+E',     group: 'action',  run: handleExport },
+  ], [handleFitToView, handleResetCamera, toggleDebug, toggleSuperposition, cycleContext, handleImport, handleExport]);
 
   useKeyboard(store, keyboardCallbacks);
 
@@ -200,6 +223,12 @@ function AppInner() {
         <DropZone onDrop={handleDrop} />
         <Console isOpen={consoleOpen} />
         <DebugOverlay />
+        <FpsHud />
+        <CommandPalette
+          open={paletteOpen}
+          onClose={() => setPaletteOpen(false)}
+          baseCommands={paletteCommands}
+        />
       </div>
     </StoreContext.Provider>
   );

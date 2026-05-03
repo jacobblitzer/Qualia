@@ -16,6 +16,7 @@ export function useKeyboard(
     onToggleDebug?: () => void;
     onFitToView?: () => void;
     onResetCamera?: () => void;
+    onTogglePalette?: () => void;
   },
 ): void {
   useEffect(() => {
@@ -25,6 +26,13 @@ export function useKeyboard(
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
       const ctrl = e.ctrlKey || e.metaKey;
+
+      // Ctrl+K / Cmd+K — Toggle command palette
+      if (ctrl && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        callbacks.onTogglePalette?.();
+        return;
+      }
 
       // Ctrl+Shift+D — Toggle debug
       if (ctrl && e.shiftKey && (e.key === 'd' || e.key === 'D')) {

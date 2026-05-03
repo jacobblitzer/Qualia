@@ -1,13 +1,121 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import type { EventStore, VisualGroup } from '@qualia/core';
+import type { EventStore, VisualGroup, PlanarSettings, Level, PlaneAxis } from '@qualia/core';
+import { DEFAULT_PLANAR_SETTINGS } from '@qualia/core';
 import { PenumbraPass } from '@penumbra/three';
-import { NodeMesh } from './NodeMesh';
-import { EdgeMesh } from './EdgeMesh';
+import { NodeAtomLayer as NodeMesh } from './NodeAtomLayer';
+import { EdgeCurveLayer as EdgeMesh } from './EdgeCurveLayer';
+import type { RouteOptions } from './EdgeRouter';
 import { LabelLayer } from './LabelLayer';
 import { ContextTransition } from './ContextTransition';
 import { InteractionManager } from './InteractionManager';
 import { compileGraphToScene } from './PenumbraNetworkCompiler';
+import { createPenumbraBackdropMaterial } from './PenumbraBackdropMaterial';
+
+/**
+ * Performance / functionality toggles. Each flag turns one piece of the
+ * render pipeline on or off so the user can isolate slowness.
+ *
+ * Defaults: everything on, full quality.
+ */
+export interface PerfSettings {
+  /** Master switch for the Penumbra SDF backdrop. When false, the render
+   *  loop skips Penumbra entirely (the pass stays alive but is silent). */
+  penumbraEnabled: boolean;
+  /** Include sphere primitives at every node in the SDF skeleton. */
+  skeletonNodesEnabled: boolean;
+  /** Include capsule primitives along every edge in the SDF skeleton.
+   *  This is usually the most expensive — many capsules + smooth-union. */
+  skeletonEdgesEnabled: boolean;
+  /** Include per-group halo point-cloud fields. */
+  halosEnabled: boolean;
+  /** Three.js node InstancedMesh visibility. */
+  nodesVisible: boolean;
+  /** Three.js edge LineSegments2 visibility. */
+  edgesVisible: boolean;
+  /** CSS label overlay visibility. */
+  labelsVisible: boolean;
+  /** Background grid helper visibility. */
+  gridVisible: boolean;
+  /** Render Penumbra every N frames (1 = every frame, 4 = every 4th). */
+  penumbraRenderInterval: number;
+  /** Penumbra render resolution as a fraction of the viewport. 1.0 = full. */
+  penumbraResolutionScale: number;
+  /**
+   * Multiplier applied to each group's `params.radius` when computing the
+   * halo SDF point-cloud radius. <1 = halos sit inside the group radius
+   * (skeleton silhouette dominates); >1 = halos extend beyond and engulf
+   * skeleton detail. Default 0.7. See Bug 0002.
+   */
+  haloRadiusMultiplier: number;
+  /**
+   * Smooth-union blend radius for the SDF skeleton. Smaller = sharper,
+   * more visible per-node/per-edge primitives; larger = nodes/edges fuse
+   * into one continuous mass. Default 0.15. See Bug 0005.
+   */
+  skeletonBlend: number;
+  /** Global illumination (SDF-based AO) enabled. Default false. */
+  giEnabled: boolean;
+  /** GI strength multiplier (0 = no effect, 1 = default occlusion, 2+ = exaggerated). */
+  giStrength: number;
+  /** Three node mesh opacity. <1 lets the plane/grid show through nodes. Default 0.7. */
+  nodeOpacity: number;
+  /** Penumbra backdrop opacity. <1 lets the plane/grid show through the SDF blob. Default 0.85. */
+  haloOpacity: number;
+  /** When true, halo fields smooth-union with each other instead of staying discrete.
+   *  Allows neighbouring groups' halos to flow into one another. Default false. */
+  smoothHaloBlend: boolean;
+  /** Smooth-union blend radius applied at the scene level when smoothHaloBlend
+   *  is enabled. Default 0.5. */
+  haloBlendRadius: number;
+  /** When true, each group's halo also includes capsules along edges between
+   *  its member nodes (in addition to the point-cloud at member positions). */
+  edgesInHalo: boolean;
+  /** Capsule radius for edges-in-halo. Default 0.4. */
+  edgeHaloRadius: number;
+
+  // ─── Particulate mode (Penumbra ADR 0010) ────────────────────────
+  /** Penumbra render mode: 'surface' | 'particulate' | 'blend'. Default 'surface'. */
+  renderMode: 'surface' | 'particulate' | 'blend';
+  /** Coarse-march step count (4-32). Default 12. */
+  particulateCoarseSteps: number;
+  /** Coarse render resolution as a fraction of viewport (0.25-1.0). Default 0.5. */
+  particulateCoarseScale: number;
+  /** Points scattered per coarse seed (8-512). Default 64. */
+  particulatePointsPerSeed: number;
+  /** Scatter jitter radius in world units. Default 0.3. */
+  particulateScatterRadius: number;
+  /** Surface ↔ volume mix (0=surface only, 1=volume only). Default 0.2. */
+  particulateVolumeMix: number;
+  /** Point billboard size in pixels. Default 4. */
+  particulatePointSize: number;
+  /** Surface↔particulate mix for blend mode (0=surface, 1=particulate). Default 0.5. */
+  particulateMix: number;
+  /** Output brightness multiplier. Default 1.5. */
+  particulateBrightness: number;
+  /** Animate seed pixel selection per-frame ("fizz"). Default false. */
+  particulateShimmer: boolean;
+  /** Cloud-noise strength (0 = lattice, 1 = wispy cloud). Default 0.5. */
+  particulateCloudNoise: number;
+  /** Cloud-noise spatial scale. Default 1.5. */
+  particulateCloudNoiseScale: number;
+  /** fbm displacement amplitude in scene units (independent of scatterRadius). Default 0.5. */
+  particulateCloudAmplitude: number;
+  /** Sub-seeds per atlas brick (1-16). Multiplies cloud density. Default 1. */
+  particulateSeedSubdivision: number;
+  /** Particle softness — 0 sharp / 1 wide soft puff. Default 0.5. */
+  particulateSoftness: number;
+
+  // ─── Edge softening (Penumbra post pass) — both default 0 (off) ──────
+  /** Bilateral-blur strength on the Penumbra offscreen color (0 = off, 1 = full). */
+  edgeSoftenBilateralStrength: number;
+  /** Bloom (halo glow) strength on the Penumbra mask (0 = off, ~0.6 = strong). */
+  edgeSoftenBloomStrength: number;
+  /** Cardinal-tap pixel radius for bilateral kernel. Default 1.5. */
+  edgeSoftenBilateralRadius: number;
+  /** Pixel radius of the bloom kernel. Default 6. */
+  edgeSoftenBloomRadius: number;
+}
 
 /**
  * Orchestrates the entire Three.js scene: nodes, edges, labels,
@@ -34,6 +142,11 @@ export class SceneManager {
   private _dirLight: THREE.DirectionalLight;
   private _accentLight: THREE.PointLight;
   private _fillLight: THREE.PointLight;
+  // Bug 0019: always-on hemisphere baseline. NOT user-controllable. Guarantees
+  // the scene reads as "dimly lit" even when the ambient slider is at zero,
+  // so neither dark nor light mode goes pitch black. The user-controllable
+  // ambient light layers on top of this.
+  private _baselineHemi: THREE.HemisphereLight;
   private _grid: THREE.GridHelper;
 
   // Rhino-style controls keyboard state
@@ -44,11 +157,69 @@ export class SceneManager {
   // Override flags: when set, _syncVisuals won't clobber these values
   private _edgeOpacityOverride: number | null = null;
 
+  // Plane confinement + levels (ADR Qualia 0005)
+  private _planarSettings: PlanarSettings = { ...DEFAULT_PLANAR_SETTINGS };
+  private _planeMesh: THREE.Mesh | null = null;
+  private _planeOutline: THREE.LineSegments | null = null;
+  private _savedCamera: { position: THREE.Vector3; up: THREE.Vector3; target: THREE.Vector3 } | null = null;
+
   // Penumbra SDF integration (Phase 6) — null until enabled by host.
   private _penumbra: PenumbraPass | null = null;
   private _penumbraBackdrop: THREE.Mesh | null = null;
   private _penumbraScene: THREE.Scene | null = null;
   private _penumbraCamera: THREE.OrthographicCamera | null = null;
+  private _penumbraFrameCounter = 0;
+  private _perf: PerfSettings = {
+    penumbraEnabled: true,
+    skeletonNodesEnabled: true,
+    skeletonEdgesEnabled: true,
+    halosEnabled: true,
+    nodesVisible: true,
+    edgesVisible: true,
+    labelsVisible: true,
+    gridVisible: true,
+    // Lower defaults for snappy first paint (Bug 0009). Users can opt up via the perf panel.
+    penumbraRenderInterval: 2,
+    penumbraResolutionScale: 0.4,
+    haloRadiusMultiplier: 0.7,
+    skeletonBlend: 0.15,
+    // Bug 0019: enable Penumbra GI/AO by default at moderate strength so the
+    // SDF blob has visible crevice darkening even before the user touches a
+    // slider. User can still toggle off via the Perf panel.
+    giEnabled: true,
+    giStrength: 0.5,
+    // Translucency: nodes + halo overlay a visible plane/grid by default
+    nodeOpacity: 0.7,
+    haloOpacity: 0.85,
+    // Halos discrete by default (Bug 0006); user can opt into smooth fusion
+    smoothHaloBlend: false,
+    haloBlendRadius: 0.5,
+    // Edges-in-halo off by default; per-group edge tubes are an opt-in look
+    edgesInHalo: false,
+    edgeHaloRadius: 0.4,
+    // Particulate mode off by default (renderMode=surface); user opts in via Perf panel
+    renderMode: 'surface',
+    particulateCoarseSteps: 12,
+    particulateCoarseScale: 0.5,
+    particulatePointsPerSeed: 128,
+    particulateScatterRadius: 0.08,
+    particulateVolumeMix: 0.0,
+    particulatePointSize: 2,
+    particulateMix: 0.5,
+    particulateBrightness: 2.5,
+    particulateShimmer: false,
+    particulateCloudNoise: 0.5,
+    particulateCloudNoiseScale: 1.5,
+    particulateCloudAmplitude: 0.5,
+    particulateSeedSubdivision: 1,
+    particulateSoftness: 0.5,
+    // Edge softening — off by default. Live-updated via setPerfSettings →
+    // PenumbraPass.setEdgeSoftenSettings.
+    edgeSoftenBilateralStrength: 0,
+    edgeSoftenBloomStrength: 0,
+    edgeSoftenBilateralRadius: 1.5,
+    edgeSoftenBloomRadius: 6,
+  };
 
   // Light mode
   private _isLightMode = false;
@@ -135,6 +306,12 @@ export class SceneManager {
     // Lighting
     this._ambientLight = new THREE.AmbientLight(0x556688, 0.8);
     this.scene.add(this._ambientLight);
+
+    // Bug 0019: baseline hemisphere — always on, sky/ground tones, mid-low
+    // intensity. Survives any user slider at zero. Theme-dependent: warmer
+    // sky in light mode, cooler in dark.
+    this._baselineHemi = new THREE.HemisphereLight(0x88aacc, 0x223344, 0.4);
+    this.scene.add(this._baselineHemi);
     this._dirLight = new THREE.DirectionalLight(0xaabbcc, 0.6);
     this._dirLight.position.set(15, 25, 20);
     this.scene.add(this._dirLight);
@@ -145,16 +322,24 @@ export class SceneManager {
     this._fillLight.position.set(20, -10, 20);
     this.scene.add(this._fillLight);
 
-    // Grid
+    // Grid — Bug 0020: visible at all times under translucent nodes/halo.
+    // depthTest off + low renderOrder makes the grid the first thing drawn,
+    // so transparent layers above (Penumbra backdrop, nodes at <1 opacity)
+    // composite over a guaranteed-visible plane. Bumped opacity from 0.15
+    // → 0.35 so it reads through the halo overlay.
     this._grid = new THREE.GridHelper(400, 80, 0x111122, 0x111122);
-    (this._grid.material as THREE.Material).transparent = true;
-    (this._grid.material as THREE.Material).opacity = 0.15;
+    const gridMat = this._grid.material as THREE.Material & { color: THREE.Color };
+    gridMat.transparent = true;
+    gridMat.opacity = 0.35;
+    gridMat.depthTest = false;
+    gridMat.depthWrite = false;
+    this._grid.renderOrder = -1000;
     this._grid.position.y = -5;
     this.scene.add(this._grid);
 
     // Sub-systems
     this.nodeMesh = new NodeMesh();
-    this.scene.add(this.nodeMesh.mesh);
+    this.scene.add(this.nodeMesh.group);
 
     this.edgeMesh = new EdgeMesh();
     this.scene.add(this.edgeMesh.lineSegments);
@@ -213,6 +398,7 @@ export class SceneManager {
     this.interaction.updateGumball();
     this._syncVisuals();
 
+
     const width = this._container.clientWidth;
     const height = this._container.clientHeight;
 
@@ -221,16 +407,35 @@ export class SceneManager {
     // then draws nodes/edges on top — depth compositing is "background
     // behind opaque foreground" only; SDF cannot occlude meshes in v1.
     // See @penumbra/three README for the depth-handoff caveat.
-    if (this._penumbra && this._penumbraScene && this._penumbraCamera) {
-      this.camera.updateMatrixWorld();
-      this.camera.updateProjectionMatrix();
-      this._penumbra.render(this.camera);
+    const penumbraActive =
+      this._perf.penumbraEnabled &&
+      this._penumbra &&
+      this._penumbraScene &&
+      this._penumbraCamera;
+    if (penumbraActive) {
+      // Frame-throttle: only re-render Penumbra every N frames. The
+      // backdrop quad continues sampling whatever was last produced.
+      if (this._penumbraFrameCounter % Math.max(1, this._perf.penumbraRenderInterval) === 0) {
+        this.camera.updateMatrixWorld();
+        this.camera.updateProjectionMatrix();
+        this._penumbra!.render(this.camera);
+      }
+      this._penumbraFrameCounter++;
 
+      // ADR 0007: depth-aware composite. Halo is a translucent overlay,
+      // not an occluder. Render order:
+      //   1. Main scene first (opaque) — populates color + depth.
+      //   2. Backdrop on top with depthTest=true (uses gl_FragDepth =
+      //      Penumbra's SDF surface depth) and depthWrite=false. Halo
+      //      sits behind closer nodes (they occlude it) and composites
+      //      translucently over farther nodes (they show through its alpha).
       const autoClear = this.renderer.autoClear;
       this.renderer.autoClear = true;
-      this.renderer.render(this._penumbraScene, this._penumbraCamera);
-      this.renderer.autoClear = false;
       this.renderer.render(this.scene, this.camera);
+      this.renderer.autoClear = false;
+      this.renderer.autoClearDepth = false;
+      this.renderer.render(this._penumbraScene!, this._penumbraCamera!);
+      this.renderer.autoClearDepth = true;
       this.renderer.autoClear = autoClear;
     } else {
       this.renderer.render(this.scene, this.camera);
@@ -271,10 +476,33 @@ export class SceneManager {
   }
 
   private _getCurrentPositions(): Record<string, [number, number, number]> {
+    let positions: Record<string, [number, number, number]>;
     if (this.transition.isActive) {
-      return this.transition.positions;
+      positions = { ...this.transition.positions };
+    } else {
+      positions = { ...this._store.getActivePositions() };
     }
-    return this._store.getActivePositions();
+    // Apply level constraints (planar mode) — captured nodes get their
+    // position-along-axis-normal pulled toward the level's offset.
+    if (this._planarSettings.layoutPlanar) {
+      const axis = this._planarSettings.axis;
+      const set = this._planarSettings.levels[axis.id] ?? [];
+      const k = this._planarSettings.pullStrength;
+      for (const level of set) {
+        for (const id of level.capturedNodeIds) {
+          const p = positions[id];
+          if (!p) continue;
+          const cur = dotVec3(p, axis.normal);
+          const delta = (level.position - cur) * k;
+          positions[id] = [
+            p[0] + axis.normal[0] * delta,
+            p[1] + axis.normal[1] * delta,
+            p[2] + axis.normal[2] * delta,
+          ];
+        }
+      }
+    }
+    return positions;
   }
 
   /**
@@ -435,15 +663,319 @@ export class SceneManager {
   }
 
   setNodeMeshVisible(visible: boolean): void {
-    this.nodeMesh.mesh.visible = visible;
+    this.nodeMesh.setBucketsVisible(visible);
+  }
+
+  /**
+   * Set the global node display mode. Per-type and per-node overrides on the
+   * node data still apply via the resolver cascade. See ADR Qualia 0003.
+   */
+  setNodeDisplayMode(mode: import('@qualia/core').NodeDisplayMode): void {
+    this.nodeMesh.setGlobalDisplayMode(mode);
+    // Re-run update to rebuild overlays for the new mode
+    this.nodeMesh.update(
+      this._getCurrentPositions(),
+      this._store.state.nodes,
+      this._store.state.nodeTypes,
+      this._store.state.selectedNodeIds,
+      this.interaction.hoveredNodeId,
+    );
+  }
+
+  getNodeDisplayMode(): import('@qualia/core').NodeDisplayMode {
+    return this.nodeMesh.getGlobalDisplayMode();
+  }
+
+  /** True if a PenumbraPass is attached and rendering the SDF backdrop. */
+  get hasPenumbra(): boolean {
+    return this._penumbra !== null;
+  }
+
+  /**
+   * Re-run the node atom layer's update with current store state. Used by
+   * UI panels that mutate nodeType.sdfAtom / nodeType.displayMode and need
+   * the visual to reflect the change without piggy-backing on
+   * setNodeDisplayMode. Bug 0003.
+   */
+  refreshNodeAtoms(): void {
+    this.nodeMesh.update(
+      this._getCurrentPositions(),
+      this._store.state.nodes,
+      this._store.state.nodeTypes,
+      this._store.state.selectedNodeIds,
+      this.interaction.hoveredNodeId,
+    );
+  }
+
+  // ─── Edge display (ADR Qualia 0004) ───────────────────────────────────
+
+  setEdgeShape(shape: import('@qualia/core').EdgeShape): void {
+    this.edgeMesh.globalShape = shape;
+  }
+
+  getEdgeShape(): import('@qualia/core').EdgeShape {
+    return this.edgeMesh.globalShape;
+  }
+
+  setEdgeRouting(opts: Partial<RouteOptions>): void {
+    this.edgeMesh.routeOptions = { ...this.edgeMesh.routeOptions, ...opts };
+  }
+
+  getEdgeRouting(): RouteOptions {
+    return { ...this.edgeMesh.routeOptions };
+  }
+
+  // ─── Planar confinement (ADR Qualia 0005) ─────────────────────────────
+
+  getPlanarSettings(): PlanarSettings {
+    return { ...this._planarSettings, levels: cloneLevels(this._planarSettings.levels) };
+  }
+
+  setPlanarSettings(partial: Partial<PlanarSettings>): void {
+    const prev = this._planarSettings;
+    const next: PlanarSettings = { ...prev, ...partial };
+    this._planarSettings = next;
+
+    // Plane visibility
+    if (next.showPlane) {
+      this._ensurePlaneMesh();
+      this._updatePlaneTransform();
+    } else {
+      this._removePlaneMesh();
+    }
+
+    // Camera lock
+    if (partial.cameraLock !== undefined && partial.cameraLock !== prev.cameraLock) {
+      if (next.cameraLock) this._lockCameraToAxis(next.axis);
+      else this._unlockCamera();
+    } else if (next.cameraLock && partial.axis) {
+      // axis changed while locked — relock
+      this._lockCameraToAxis(next.axis);
+    }
+  }
+
+  /**
+   * Capture nodes within `bandWidth` of the current `livePlanePosition` into
+   * a new Level on the active axis. Returns the new level's id, or null if
+   * no nodes were near enough to capture.
+   */
+  captureLevel(bandWidth = 1.0, name?: string): string | null {
+    const axis = this._planarSettings.axis;
+    const target = this._planarSettings.livePlanePosition;
+    const positions = this._getCurrentPositions();
+    const captured: string[] = [];
+    for (const [id, p] of Object.entries(positions)) {
+      const dist = dotVec3(p, axis.normal);
+      if (Math.abs(dist - target) <= bandWidth) {
+        // Don't capture if already in a level on this axis
+        if (this._isCapturedOnAxis(id, axis.id)) continue;
+        captured.push(id);
+      }
+    }
+    if (captured.length === 0) return null;
+    const level: Level = {
+      id: `level-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      name: name ?? `Level @ ${target.toFixed(2)}`,
+      position: target,
+      capturedNodeIds: captured,
+    };
+    const set = this._planarSettings.levels[axis.id] ?? [];
+    this._planarSettings.levels = {
+      ...this._planarSettings.levels,
+      [axis.id]: [...set, level],
+    };
+    return level.id;
+  }
+
+  /** Remove a level. Captured nodes go back to free movement. */
+  uncaptureLevel(levelId: string): void {
+    const axis = this._planarSettings.axis;
+    const set = this._planarSettings.levels[axis.id] ?? [];
+    const next = set.filter((l) => l.id !== levelId);
+    this._planarSettings.levels = {
+      ...this._planarSettings.levels,
+      [axis.id]: next,
+    };
+  }
+
+  /** Apply level constraints to a positions map in-place. Honors pullStrength
+   *  (1.0 = hard clamp; <1.0 = soft pull from current position). */
+  applyLevelsToPositions(positions: Record<string, [number, number, number]>): void {
+    if (!this._planarSettings.layoutPlanar) return;
+    const axis = this._planarSettings.axis;
+    const set = this._planarSettings.levels[axis.id] ?? [];
+    const k = this._planarSettings.pullStrength;
+    for (const level of set) {
+      for (const id of level.capturedNodeIds) {
+        const p = positions[id];
+        if (!p) continue;
+        const cur = dotVec3(p, axis.normal);
+        const delta = (level.position - cur) * k;
+        positions[id] = [
+          p[0] + axis.normal[0] * delta,
+          p[1] + axis.normal[1] * delta,
+          p[2] + axis.normal[2] * delta,
+        ];
+      }
+    }
+  }
+
+  private _isCapturedOnAxis(nodeId: string, axisId: string): boolean {
+    const set = this._planarSettings.levels[axisId] ?? [];
+    for (const l of set) {
+      if (l.capturedNodeIds.includes(nodeId)) return true;
+    }
+    return false;
+  }
+
+  private _ensurePlaneMesh(): void {
+    if (this._planeMesh) return;
+    const geom = new THREE.PlaneGeometry(40, 40);
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0x6688aa,
+      transparent: true,
+      opacity: 0.08,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    });
+    this._planeMesh = new THREE.Mesh(geom, mat);
+    this.scene.add(this._planeMesh);
+
+    const edgesGeom = new THREE.EdgesGeometry(geom);
+    const edgesMat = new THREE.LineBasicMaterial({
+      color: 0x88aacc,
+      transparent: true,
+      opacity: 0.4,
+    });
+    this._planeOutline = new THREE.LineSegments(edgesGeom, edgesMat);
+    this.scene.add(this._planeOutline);
+  }
+
+  private _removePlaneMesh(): void {
+    if (this._planeMesh) {
+      this.scene.remove(this._planeMesh);
+      (this._planeMesh.geometry as THREE.BufferGeometry).dispose();
+      (this._planeMesh.material as THREE.Material).dispose();
+      this._planeMesh = null;
+    }
+    if (this._planeOutline) {
+      this.scene.remove(this._planeOutline);
+      (this._planeOutline.geometry as THREE.BufferGeometry).dispose();
+      (this._planeOutline.material as THREE.Material).dispose();
+      this._planeOutline = null;
+    }
+  }
+
+  /** Position + orient the plane to match the active axis + livePlanePosition. */
+  private _updatePlaneTransform(): void {
+    if (!this._planeMesh) return;
+    const axis = this._planarSettings.axis;
+    const offset = this._planarSettings.livePlanePosition;
+
+    // Plane mesh defaults to Z-normal in Three. Rotate so its +Z aligns with
+    // the requested axis normal.
+    const target = new THREE.Vector3(axis.normal[0], axis.normal[1], axis.normal[2]).normalize();
+    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), target);
+    this._planeMesh.quaternion.copy(q);
+    this._planeMesh.position.set(target.x * offset, target.y * offset, target.z * offset);
+
+    if (this._planeOutline) {
+      this._planeOutline.quaternion.copy(q);
+      this._planeOutline.position.copy(this._planeMesh.position);
+    }
+  }
+
+  private _lockCameraToAxis(axis: PlaneAxis): void {
+    if (!this._savedCamera) {
+      this._savedCamera = {
+        position: this.camera.position.clone(),
+        up: this.camera.up.clone(),
+        target: this.controls.target.clone(),
+      };
+    }
+    const tgt = this.controls.target;
+    const dist = this.camera.position.distanceTo(tgt);
+    const n = new THREE.Vector3(axis.normal[0], axis.normal[1], axis.normal[2]).normalize();
+    this.camera.position.copy(tgt).addScaledVector(n, dist);
+    // Pick a stable up vector that's perpendicular to the normal
+    const candidate = Math.abs(n.y) > 0.9 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0);
+    const right = new THREE.Vector3().crossVectors(n, candidate).normalize();
+    const up = new THREE.Vector3().crossVectors(right, n).normalize();
+    this.camera.up.copy(up);
+    this.camera.lookAt(tgt);
+  }
+
+  private _unlockCamera(): void {
+    if (!this._savedCamera) return;
+    this.camera.position.copy(this._savedCamera.position);
+    this.camera.up.copy(this._savedCamera.up);
+    this.controls.target.copy(this._savedCamera.target);
+    this.camera.lookAt(this.controls.target);
+    this._savedCamera = null;
   }
 
   setEdgesVisible(visible: boolean): void {
     this.edgeMesh.lineSegments.visible = visible;
   }
 
+  /**
+   * Apply a full ThemeConfig (ADR Qualia 0008). Replaces the old
+   * `setLightMode(boolean)` boolean toggle with a parameterized config
+   * carrying palette + Penumbra mirror + motion. `setLightMode` is kept
+   * below as a thin legacy wrapper.
+   *
+   * Theme is the canonical place for: scene clear color, fog, grid color,
+   * ambient + dir + baseline-hemi lights, node materials' emissive/roughness,
+   * and Penumbra background + lighting + intensity.
+   *
+   * The theme's CSS variables are NOT applied here — that's App.tsx's
+   * responsibility (DOM concern, separated from renderer concerns).
+   */
+  applyTheme(theme: import('@qualia/core').ThemeConfig): void {
+    this._isLightMode = theme.id === 'light';
+
+    // Three scene
+    this.renderer.setClearColor(theme.bgPrimary, 1);
+    this.scene.fog = new THREE.FogExp2(theme.bgFog, theme.fogDensity);
+    (this._grid.material as unknown as { color: THREE.Color }).color.set(theme.gridColor);
+
+    this._ambientLight.color.set(theme.ambientLightColor);
+    this._ambientLight.intensity = theme.ambientLightIntensity;
+
+    this._baselineHemi.color.set(theme.baselineHemiSky);
+    this._baselineHemi.groundColor.set(theme.baselineHemiGround);
+    this._baselineHemi.intensity = theme.baselineHemiIntensity;
+
+    this._dirLight.color.set(theme.dirLightColor);
+    this._dirLight.intensity = theme.dirLightIntensity;
+
+    this.nodeMesh.forEachMaterial((m) => {
+      m.emissive.set(theme.nodeEmissive);
+      m.emissiveIntensity = theme.nodeEmissiveIntensity;
+      m.roughness = theme.nodeRoughness;
+    });
+
+    this.labelLayer.setLightMode(theme.id === 'light');
+    this.edgeMesh.setLightMode(theme.id === 'light');
+
+    // Penumbra mirror
+    if (this._penumbra) {
+      this._penumbra.setBackgroundColor(theme.penumbraBg);
+      this._penumbra.setLightingSettings({
+        ambientColor: theme.penumbraAmbientSky,
+        ambientGroundColor: theme.penumbraAmbientGround,
+        ambientIntensity: theme.penumbraAmbientIntensity,
+        color: theme.penumbraLightColor,
+        intensity: theme.penumbraLightIntensity,
+      });
+    }
+
+  }
+
+  /** @deprecated Use applyTheme(THEMES.dark | THEMES.light). Kept for back-compat. */
   setLightMode(isLight: boolean): void {
-    const nodeMat = this.nodeMesh.mesh.material as THREE.MeshStandardMaterial;
+    const nodeMat = this.nodeMesh.getPrimaryMaterial();
+    if (!nodeMat) return;
 
     if (isLight && !this._isLightMode) {
       // Save current state before switching to light
@@ -469,9 +1001,15 @@ export class SceneManager {
       this._ambientLight.intensity = 1.5;
       this._dirLight.color.set(0xffffff);
       this._dirLight.intensity = 1.0;
-      nodeMat.emissive.set(0x112233);
-      nodeMat.emissiveIntensity = 0.1;
-      nodeMat.roughness = 0.5;
+      // Bug 0019: warmer baseline hemisphere in light mode
+      this._baselineHemi.color.set(0xfff8e8);
+      this._baselineHemi.groundColor.set(0xc8ccd0);
+      this._baselineHemi.intensity = 0.5;
+      this.nodeMesh.forEachMaterial((m) => {
+        m.emissive.set(0x112233);
+        m.emissiveIntensity = 0.1;
+        m.roughness = 0.5;
+      });
     } else {
       this.renderer.setClearColor(this._darkDefaults.clearColor, 1);
       const fogDensity = this._savedDarkState?.fogDensity ?? (this.scene.fog as THREE.FogExp2).density;
@@ -481,10 +1019,47 @@ export class SceneManager {
       this._ambientLight.intensity = this._savedDarkState?.ambientIntensity ?? this._darkDefaults.ambientIntensity;
       this._dirLight.color.set(this._darkDefaults.dirColor);
       this._dirLight.intensity = this._savedDarkState?.dirIntensity ?? this._darkDefaults.dirIntensity;
-      nodeMat.emissive.set(this._darkDefaults.emissive);
-      nodeMat.emissiveIntensity = this._savedDarkState?.emissiveIntensity ?? this._darkDefaults.emissiveIntensity;
-      nodeMat.roughness = this._savedDarkState?.roughness ?? this._darkDefaults.roughness;
+      const restoreEmissive = this._savedDarkState?.emissiveIntensity ?? this._darkDefaults.emissiveIntensity;
+      const restoreRoughness = this._savedDarkState?.roughness ?? this._darkDefaults.roughness;
+      this.nodeMesh.forEachMaterial((m) => {
+        m.emissive.set(this._darkDefaults.emissive);
+        m.emissiveIntensity = restoreEmissive;
+        m.roughness = restoreRoughness;
+      });
+      // Bug 0019: cooler baseline hemisphere in dark mode. Higher intensity
+      // than light mode because dark scenes need MORE baseline to be readable.
+      this._baselineHemi.color.set(0x88aacc);
+      this._baselineHemi.groundColor.set(0x1a2030);
+      this._baselineHemi.intensity = 0.6;
       this._savedDarkState = null;
+    }
+
+    // Bug 0015: mirror theme to Penumbra. Match background + ambient/sky/ground
+    // colors so the SDF blob's surface tint matches the rest of the scene.
+    if (this._penumbra) {
+      if (isLight) {
+        this._penumbra.setBackgroundColor([0.91, 0.92, 0.94]);
+        this._penumbra.setLightingSettings({
+          ambientColor: [0.7, 0.72, 0.78],
+          ambientGroundColor: [0.55, 0.56, 0.6],
+          ambientIntensity: 1.5,
+          color: [1.0, 1.0, 1.0],
+          intensity: 1.0,
+        });
+      } else {
+        this._penumbra.setBackgroundColor([
+          ((this._darkDefaults.clearColor >> 16) & 0xff) / 255,
+          ((this._darkDefaults.clearColor >> 8) & 0xff) / 255,
+          (this._darkDefaults.clearColor & 0xff) / 255,
+        ]);
+        this._penumbra.setLightingSettings({
+          ambientColor: [0.2, 0.25, 0.35],
+          ambientGroundColor: [0.1, 0.08, 0.05],
+          ambientIntensity: this._ambientLight.intensity,
+          color: [1.0, 0.95, 0.9],
+          intensity: 1.5,
+        });
+      }
     }
   }
 
@@ -511,8 +1086,8 @@ export class SceneManager {
       this.nodeMesh.setScaleMultiplier(settings.nodeScale);
     }
     if (settings.emissiveIntensity !== undefined) {
-      const mat = this.nodeMesh.mesh.material as THREE.MeshStandardMaterial;
-      mat.emissiveIntensity = settings.emissiveIntensity;
+      const v = settings.emissiveIntensity;
+      this.nodeMesh.forEachMaterial((m) => { m.emissiveIntensity = v; });
     }
     if (settings.edgeOpacity !== undefined) {
       this._edgeOpacityOverride = settings.edgeOpacity;
@@ -522,9 +1097,16 @@ export class SceneManager {
     }
     if (settings.ambientIntensity !== undefined) {
       this._ambientLight.intensity = settings.ambientIntensity;
+      // Bug 0015: mirror to Penumbra so the SDF blob's ambient matches
+      this._penumbra?.setLightingSettings({ ambientIntensity: settings.ambientIntensity });
     }
     if (settings.fogDensity !== undefined) {
       (this.scene.fog as THREE.FogExp2).density = settings.fogDensity;
+      // Bug 0015: mirror to Penumbra fog
+      this._penumbra?.setFogSettings({
+        density: settings.fogDensity,
+        enabled: settings.fogDensity > 0,
+      });
     }
     if (settings.fov !== undefined) {
       this.camera.fov = settings.fov;
@@ -534,6 +1116,19 @@ export class SceneManager {
       this.camera.far = settings.farPlane;
       this.camera.updateProjectionMatrix();
     }
+
+    // Bug 0010: re-sync visuals immediately so override changes (notably
+    // edge opacity) propagate to materials within the same call stack
+    // instead of waiting for the next render frame.
+    if (settings.edgeOpacity !== undefined || settings.emissiveIntensity !== undefined) {
+      this._syncVisuals();
+    }
+  }
+
+  /** Bug 0010: expose the raw override so the snapshot doesn't have to read
+   *  the lagging material value. Returns null when no override is active. */
+  getEdgeOpacityOverride(): number | null {
+    return this._edgeOpacityOverride;
   }
 
   /**
@@ -542,7 +1137,7 @@ export class SceneManager {
   getViewerSettings() {
     return {
       nodeScale: this.nodeMesh.getScaleMultiplier(),
-      emissiveIntensity: (this.nodeMesh.mesh.material as THREE.MeshStandardMaterial).emissiveIntensity,
+      emissiveIntensity: this.nodeMesh.getPrimaryMaterial()?.emissiveIntensity ?? 0.4,
       edgeOpacity: (this.edgeMesh.lineSegments.material as THREE.Material & { opacity: number }).opacity,
       edgeWidth: this.edgeMesh.getLineWidth(),
       ambientIntensity: this._ambientLight.intensity,
@@ -556,13 +1151,44 @@ export class SceneManager {
 
   /**
    * Update a node's position (called by gumball drag).
+   *
+   * In an active context, mutates that context's positions map.
+   * In superposition mode (`activeContextId === null`), applies the new
+   * position to every context that already has the node — keeps the
+   * union view consistent across underlying contexts (Bug 0007).
+   *
+   * After the mutation, immediately re-bakes the dependent visual
+   * subsystems (NodeAtomLayer + EdgeMesh) so the change is visible
+   * within the same frame, without waiting for the next layout tick.
    */
   updateNodePosition(nodeId: string, position: [number, number, number]): void {
     const contextId = this._store.state.activeContextId;
-    if (!contextId) return;
-    const ctx = this._store.state.contexts.get(contextId);
-    if (!ctx?.positions) return;
-    ctx.positions[nodeId] = position;
+    if (contextId) {
+      const ctx = this._store.state.contexts.get(contextId);
+      if (ctx?.positions) ctx.positions[nodeId] = [...position];
+    } else {
+      // Superposition: write to every context that has this node positioned
+      let touched = 0;
+      for (const ctx of this._store.state.contexts.values()) {
+        if (ctx.positions && nodeId in ctx.positions) {
+          ctx.positions[nodeId] = [...position];
+          touched++;
+        }
+      }
+      if (touched === 0) {
+        // No context owns a position for this node — write into the first
+        // context as a fallback so the drag has somewhere to go.
+        const first = this._store.state.contexts.values().next().value;
+        if (first) {
+          if (!first.positions) first.positions = {};
+          first.positions[nodeId] = [...position];
+        }
+      }
+    }
+
+    // Push the new position into the visual layers immediately so the
+    // next render frame draws the moved node.
+    this.refreshNodeAtoms();
   }
 
   resize(width: number, height: number): void {
@@ -628,14 +1254,20 @@ export class SceneManager {
 
     // Fullscreen quad in its own scene with an orthographic camera. Sampling
     // pass.texture maps Penumbra's output 1:1 to the viewport.
+    //
+    // Bug 0023 / ADR 0007: depth-aware composite. The backdrop material
+    // samples Penumbra's depth canvas (RGB-packed 24-bit NDC depth) and
+    // writes gl_FragDepth so Three meshes correctly z-comp against the
+    // SDF surface. Backdrop is drawn AT the very back of the main scene
+    // with depthTest=true / depthWrite=true; the legacy two-scene render
+    // (autoClear backdrop pre-pass) is no longer needed.
     const backdropScene = new THREE.Scene();
     const backdropCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     const backdropGeom = new THREE.PlaneGeometry(2, 2);
-    const backdropMat = new THREE.MeshBasicMaterial({
-      map: pass.texture,
-      depthTest: false,
-      depthWrite: false,
-      transparent: false,
+    const backdropMat = createPenumbraBackdropMaterial({
+      colorTex: pass.texture,
+      depthTex: pass.depthTexture,
+      haloOpacity: this._perf.haloOpacity,
     });
     const backdropMesh = new THREE.Mesh(backdropGeom, backdropMat);
     backdropScene.add(backdropMesh);
@@ -644,8 +1276,49 @@ export class SceneManager {
     this._penumbraCamera = backdropCamera;
     this._penumbraBackdrop = backdropMesh;
 
-    // Resize the pass to match the current canvas.
-    pass.resize(this.renderer.domElement.width, this.renderer.domElement.height);
+    // Bug 0004: PenumbraPass.resize disposes + recreates its CanvasTexture.
+    // We must update the backdrop material's uniforms, otherwise we'd
+    // hold a stale (disposed) texture handle.
+    pass.onTextureReplaced((tex) => {
+      backdropMat.uniforms.uColorTex.value = tex;
+      backdropMat.uniformsNeedUpdate = true;
+    });
+    pass.onDepthTextureReplaced((tex) => {
+      backdropMat.uniforms.uDepthTex.value = tex;
+      backdropMat.uniformsNeedUpdate = true;
+    });
+
+    // Push current GI / lighting state to the new pass.
+    pass.setLightingSettings({
+      giEnabled: this._perf.giEnabled,
+      giStrength: this._perf.giStrength,
+    });
+
+    // Scene-combine. min keeps fields discrete (Bug 0006); smoothUnion lets
+    // neighbouring halos flow into each other when the user opts in.
+    if (this._perf.smoothHaloBlend) {
+      pass.setSceneCombineOp('smoothUnion', this._perf.haloBlendRadius);
+    } else {
+      pass.setSceneCombineOp('min', 0);
+    }
+
+    // Bug 0017: force tape evaluation across all fields. The skeleton's
+    // smooth-union of 12 spheres + 23 capsules compiles to a tape too long
+    // for Penumbra's default `tapeEvalLimit: 50`, which would flip it to
+    // atlas mode and render via a bounding-sphere companion until the atlas
+    // bake completes (often never visible to the user). multi-tape mode
+    // tells Penumbra "evaluate all fields' actual tapes, regardless of
+    // length" — the network silhouette appears as a gloopy spaceframe
+    // instead of a uniform sphere. Combined with PenumbraPass's now-bumped
+    // `tapeEvalLimit: 500` (Viewport.tsx) this is belt-and-suspenders.
+    pass.setEvalMode('multi-tape');
+
+    // Resize the pass to match the current canvas, scaled by the perf flag.
+    const scale = this._perf.penumbraResolutionScale;
+    pass.resize(
+      Math.max(1, Math.floor(this.renderer.domElement.width * scale)),
+      Math.max(1, Math.floor(this.renderer.domElement.height * scale)),
+    );
 
     // Push current visual groups, if any.
     const groups = this._store.getActiveGroups();
@@ -665,8 +1338,178 @@ export class SceneManager {
   private async _pushPenumbraScene(groups: VisualGroup[]): Promise<void> {
     if (!this._penumbra) return;
     const edges = this._store.getActiveEdges();
-    const scene = compileGraphToScene(edges, groups, this._getCurrentPositions());
+    const scene = compileGraphToScene(
+      edges,
+      groups,
+      this._getCurrentPositions(),
+      {
+        includeSkeletonNodes: this._perf.skeletonNodesEnabled,
+        includeSkeletonEdges: this._perf.skeletonEdgesEnabled,
+        includeHalos: this._perf.halosEnabled,
+        haloRadiusMultiplier: this._perf.haloRadiusMultiplier,
+        skeletonBlend: this._perf.skeletonBlend,
+        edgesInHalo: this._perf.edgesInHalo,
+        edgeHaloRadius: this._perf.edgeHaloRadius,
+      },
+      {
+        nodes: this._store.state.nodes,
+        nodeTypes: this._store.state.nodeTypes,
+      },
+    );
     await this._penumbra.setScene(scene);
+    // Bug 0020: setScene rebuilds Penumbra's `fields` array with default
+    // combineOp/blendRadius. Re-apply the user's halo blend choice every
+    // time setScene completes — otherwise the slider only "works" for one
+    // frame before the next throttled re-push wipes it.
+    if (this._perf.smoothHaloBlend) {
+      this._penumbra.setSceneCombineOp('smoothUnion', this._perf.haloBlendRadius);
+    } else {
+      this._penumbra.setSceneCombineOp('min', 0);
+    }
+  }
+
+  /** Read the current performance/functionality toggles (immutable copy). */
+  getPerfSettings(): PerfSettings {
+    return { ...this._perf };
+  }
+
+  /**
+   * Update one or more perf toggles. Side-effects fire immediately:
+   * subsystem visibility updates, Penumbra resolution rescales, and
+   * any flag affecting compileGraphToScene triggers a scene re-push.
+   */
+  setPerfSettings(partial: Partial<PerfSettings>): void {
+    const prev = this._perf;
+    const next = { ...prev, ...partial };
+    this._perf = next;
+
+    // Three-side visibility (cheap; just toggles `.visible`)
+    if (partial.nodesVisible !== undefined) {
+      this.nodeMesh.setBucketsVisible(next.nodesVisible);
+    }
+    if (partial.edgesVisible !== undefined) {
+      this.edgeMesh.lineSegments.visible = next.edgesVisible;
+    }
+    if (partial.labelsVisible !== undefined) {
+      this.labelLayer.setVisible(next.labelsVisible);
+    }
+    if (partial.gridVisible !== undefined) {
+      this._grid.visible = next.gridVisible;
+    }
+
+    // Penumbra resolution scale — resize the offscreen canvas. Lower scale
+    // means fewer fragment shader invocations per frame; CanvasTexture's
+    // linear filter handles upscaling at composite time.
+    if (this._penumbra && partial.penumbraResolutionScale !== undefined) {
+      const w = Math.max(1, Math.floor(this._container.clientWidth * next.penumbraResolutionScale));
+      const h = Math.max(1, Math.floor(this._container.clientHeight * next.penumbraResolutionScale));
+      this._penumbra.resize(w, h);
+    }
+
+    // Any flag that filters compileGraphToScene's output requires a re-push
+    if (
+      partial.skeletonNodesEnabled !== undefined ||
+      partial.skeletonEdgesEnabled !== undefined ||
+      partial.halosEnabled !== undefined ||
+      partial.haloRadiusMultiplier !== undefined ||
+      partial.skeletonBlend !== undefined ||
+      partial.edgesInHalo !== undefined ||
+      partial.edgeHaloRadius !== undefined
+    ) {
+      void this._pushPenumbraScene(this._store.getActiveGroups());
+    }
+
+    // Node opacity — applied to every shape bucket's MeshStandardMaterial
+    if (partial.nodeOpacity !== undefined) {
+      const o = next.nodeOpacity;
+      this.nodeMesh.forEachMaterial((m) => {
+        m.opacity = o;
+        m.transparent = o < 1;
+        m.depthWrite = o >= 1;
+      });
+    }
+
+    // Halo opacity — applied to the backdrop quad's ShaderMaterial uniform
+    // (the haloOpacity multiplier baked into the depth-aware composite).
+    if (partial.haloOpacity !== undefined && this._penumbraBackdrop) {
+      const mat = this._penumbraBackdrop.material as THREE.ShaderMaterial;
+      mat.uniforms.uHaloOpacity.value = next.haloOpacity;
+      mat.uniformsNeedUpdate = true;
+    }
+
+    // Particulate mode (Penumbra ADR 0010) — render mode + params pass-through.
+    if (this._penumbra && partial.renderMode !== undefined) {
+      this._penumbra.setRenderMode(next.renderMode);
+    }
+    if (this._penumbra && (
+      partial.particulateCoarseSteps !== undefined ||
+      partial.particulateCoarseScale !== undefined ||
+      partial.particulatePointsPerSeed !== undefined ||
+      partial.particulateScatterRadius !== undefined ||
+      partial.particulateVolumeMix !== undefined ||
+      partial.particulatePointSize !== undefined ||
+      partial.particulateMix !== undefined ||
+      partial.particulateBrightness !== undefined ||
+      partial.particulateShimmer !== undefined ||
+      partial.particulateCloudNoise !== undefined ||
+      partial.particulateCloudNoiseScale !== undefined ||
+      partial.particulateCloudAmplitude !== undefined ||
+      partial.particulateSeedSubdivision !== undefined ||
+      partial.particulateSoftness !== undefined
+    )) {
+      const p: Record<string, number | boolean> = {};
+      if (partial.particulateCoarseSteps !== undefined) p.coarseSteps = next.particulateCoarseSteps;
+      if (partial.particulateCoarseScale !== undefined) p.coarseScale = next.particulateCoarseScale;
+      if (partial.particulatePointsPerSeed !== undefined) p.pointsPerSeed = next.particulatePointsPerSeed;
+      if (partial.particulateScatterRadius !== undefined) p.scatterRadius = next.particulateScatterRadius;
+      if (partial.particulateVolumeMix !== undefined) p.volumeMix = next.particulateVolumeMix;
+      if (partial.particulatePointSize !== undefined) p.pointSize = next.particulatePointSize;
+      if (partial.particulateMix !== undefined) p.mix = next.particulateMix;
+      if (partial.particulateBrightness !== undefined) p.brightness = next.particulateBrightness;
+      if (partial.particulateShimmer !== undefined) p.shimmer = next.particulateShimmer;
+      if (partial.particulateCloudNoise !== undefined) p.cloudNoise = next.particulateCloudNoise;
+      if (partial.particulateCloudNoiseScale !== undefined) p.cloudNoiseScale = next.particulateCloudNoiseScale;
+      if (partial.particulateCloudAmplitude !== undefined) p.cloudAmplitude = next.particulateCloudAmplitude;
+      if (partial.particulateSeedSubdivision !== undefined) p.seedSubdivision = next.particulateSeedSubdivision;
+      if (partial.particulateSoftness !== undefined) p.softness = next.particulateSoftness;
+      this._penumbra.setParticulateParams(p);
+    }
+
+    // Halo blend mode — applies via Penumbra's scene-combine op
+    if (this._penumbra && (partial.smoothHaloBlend !== undefined || partial.haloBlendRadius !== undefined)) {
+      if (next.smoothHaloBlend) {
+        this._penumbra.setSceneCombineOp('smoothUnion', next.haloBlendRadius);
+      } else {
+        this._penumbra.setSceneCombineOp('min', 0);
+      }
+    }
+
+    // GI is a uniform-only update — push to Penumbra via setLightingSettings
+    if (this._penumbra && (partial.giEnabled !== undefined || partial.giStrength !== undefined)) {
+      this._penumbra.setLightingSettings({
+        giEnabled: next.giEnabled,
+        giStrength: next.giStrength,
+      });
+    }
+
+    // Edge softening — pass-through to Penumbra's post pass.
+    if (this._penumbra && (
+      partial.edgeSoftenBilateralStrength !== undefined ||
+      partial.edgeSoftenBloomStrength !== undefined ||
+      partial.edgeSoftenBilateralRadius !== undefined ||
+      partial.edgeSoftenBloomRadius !== undefined
+    )) {
+      const s: Record<string, number> = {};
+      if (partial.edgeSoftenBilateralStrength !== undefined) s.bilateralStrength = next.edgeSoftenBilateralStrength;
+      if (partial.edgeSoftenBloomStrength !== undefined) s.bloomStrength = next.edgeSoftenBloomStrength;
+      if (partial.edgeSoftenBilateralRadius !== undefined) s.bilateralRadius = next.edgeSoftenBilateralRadius;
+      if (partial.edgeSoftenBloomRadius !== undefined) s.bloomRadius = next.edgeSoftenBloomRadius;
+      if (typeof this._penumbra.setEdgeSoftenSettings === 'function') {
+        this._penumbra.setEdgeSoftenSettings(s);
+      } else {
+        console.warn('[Qualia] PenumbraPass.setEdgeSoftenSettings missing — bump @penumbra/three');
+      }
+    }
   }
 
   dispose(): void {
@@ -688,6 +1531,21 @@ export class SceneManager {
       this._penumbraBackdrop.geometry.dispose();
       this._penumbraBackdrop = null;
     }
+    this._removePlaneMesh();
     this.renderer.dispose();
   }
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function dotVec3(a: [number, number, number], b: [number, number, number]): number {
+  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+function cloneLevels(levels: import('@qualia/core').LevelSet): import('@qualia/core').LevelSet {
+  const out: import('@qualia/core').LevelSet = {};
+  for (const [k, ls] of Object.entries(levels)) {
+    out[k] = ls.map((l) => ({ ...l, capturedNodeIds: [...l.capturedNodeIds] }));
+  }
+  return out;
 }

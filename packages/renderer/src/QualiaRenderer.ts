@@ -113,6 +113,91 @@ export class QualiaRenderer {
     return this._scene.getViewerSettings();
   }
 
+  // --- Performance / functionality toggles ---
+
+  getPerfSettings(): ReturnType<SceneManager['getPerfSettings']> {
+    return this._scene.getPerfSettings();
+  }
+
+  setPerfSettings(partial: Parameters<SceneManager['setPerfSettings']>[0]): void {
+    this._scene.setPerfSettings(partial);
+  }
+
+  // --- Node display mode (ADR Qualia 0003) ---
+
+  setNodeDisplayMode(mode: import('@qualia/core').NodeDisplayMode): void {
+    this._scene.setNodeDisplayMode(mode);
+  }
+
+  getNodeDisplayMode(): import('@qualia/core').NodeDisplayMode {
+    return this._scene.getNodeDisplayMode();
+  }
+
+  /** True if a PenumbraPass is currently attached and rendering. (Bug 0001) */
+  get hasPenumbra(): boolean {
+    return this._scene.hasPenumbra;
+  }
+
+  /** Force a node-atom rebuild (used when nodeType mutations bypass setNodeDisplayMode). Bug 0003. */
+  refreshNodeAtoms(): void {
+    this._scene.refreshNodeAtoms();
+  }
+
+  /** Bug 0010: raw edge opacity override (null when no override active). */
+  getEdgeOpacityOverride(): number | null {
+    return this._scene.getEdgeOpacityOverride();
+  }
+
+  /** Bug 0015: theme toggle. Updates Three colors/materials AND mirrors to Penumbra. */
+  setLightMode(isLight: boolean): void {
+    this._scene.setLightMode(isLight);
+  }
+
+  isLightMode(): boolean {
+    return this._scene.isLightMode;
+  }
+
+  /** ADR 0008: apply a full ThemeConfig (replaces setLightMode). */
+  applyTheme(theme: Parameters<SceneManager['applyTheme']>[0]): void {
+    this._scene.applyTheme(theme);
+  }
+
+  // --- Edge display (ADR Qualia 0004) ---
+
+  setEdgeShape(shape: import('@qualia/core').EdgeShape): void {
+    this._scene.setEdgeShape(shape);
+  }
+
+  getEdgeShape(): import('@qualia/core').EdgeShape {
+    return this._scene.getEdgeShape();
+  }
+
+  setEdgeRouting(opts: Parameters<SceneManager['setEdgeRouting']>[0]): void {
+    this._scene.setEdgeRouting(opts);
+  }
+
+  getEdgeRouting(): ReturnType<SceneManager['getEdgeRouting']> {
+    return this._scene.getEdgeRouting();
+  }
+
+  // --- Planar confinement (ADR Qualia 0005) ---
+
+  getPlanarSettings(): ReturnType<SceneManager['getPlanarSettings']> {
+    return this._scene.getPlanarSettings();
+  }
+
+  setPlanarSettings(partial: Parameters<SceneManager['setPlanarSettings']>[0]): void {
+    this._scene.setPlanarSettings(partial);
+  }
+
+  captureLevel(bandWidth?: number, name?: string): string | null {
+    return this._scene.captureLevel(bandWidth, name);
+  }
+
+  uncaptureLevel(levelId: string): void {
+    this._scene.uncaptureLevel(levelId);
+  }
+
   // --- Visibility ---
 
   setLabelsVisible(visible: boolean): void {

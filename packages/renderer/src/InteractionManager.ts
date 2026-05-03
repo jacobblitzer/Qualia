@@ -107,9 +107,14 @@ export class InteractionManager {
 
   private _raycastNode(): string | null {
     this._raycaster.setFromCamera(this._mouse, this._camera);
-    const hits = this._raycaster.intersectObject(this._nodeMesh.mesh);
+    // Raycast against every shape bucket. NodeAtomLayer.resolveHit maps
+    // (mesh, instanceId) → nodeId across all buckets.
+    const targets = this._nodeMesh.raycastTargets;
+    const hits = this._raycaster.intersectObjects(targets, false);
     if (hits.length > 0 && hits[0].instanceId !== undefined) {
-      return this._nodeMesh.getNodeIdAtIndex(hits[0].instanceId) ?? null;
+      const hitMesh = hits[0].object as import('three').InstancedMesh;
+      const id = this._nodeMesh.resolveHit(hitMesh, hits[0].instanceId);
+      if (id) return id;
     }
     return null;
   }

@@ -37,7 +37,17 @@ Qualia consumes [Penumbra](../Penumbra/) as its SDF rendering engine via the `@p
 
 #### Current install (Phase 1: local tarballs)
 
-`package.json` declares `@penumbra/{core,runtime,shaders,three}` as `file:../Penumbra/dist-pkg/penumbra-*-0.1.0.tgz`. **Both repos must be checked out as siblings** (`Penumbra/` and `Qualia/` under the same parent). This is true under `C:\Repos\` already.
+`package.json` declares `@penumbra/{core,runtime,shaders,three}` as `file:../Penumbra/dist-pkg/penumbra-*.tgz`. **Both repos must be checked out as siblings** (`Penumbra/` and `Qualia/` under the same parent). This is true under `C:\Repos\` already.
+
+Current installed versions (as of 2026-05-02):
+- `@penumbra/core` 0.1.2
+- `@penumbra/runtime` 0.1.9 (+ particulate render mode, atlas-seeded)
+- `@penumbra/shaders` 0.1.5
+- `@penumbra/three` 0.1.11 (+ depth output, ADR 0007 / Bug 0030)
+
+Recent Penumbra capabilities Qualia consumes:
+- **Depth output** — `pass.depthTexture` (CanvasTexture wrapping 24-bit-packed NDC depth). Used by `PenumbraBackdropMaterial` for depth-aware composite (Bug 0023 fix).
+- **Particulate render mode** (Penumbra ADR 0010) — `pass.setRenderMode('surface'|'particulate'|'blend')` + `pass.setParticulateParams(...)`. Atlas-seeded by default when the brick atlas is built; auto-falls-back to screen-pixel seeding otherwise. Wired through Qualia's Perf panel "Particulate (Penumbra)" section.
 
 The tarballs in `Penumbra/dist-pkg/` are the only thing Qualia sees from Penumbra — Qualia does not read Penumbra source. To get a new Penumbra version into Qualia:
 
