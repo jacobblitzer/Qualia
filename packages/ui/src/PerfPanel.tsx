@@ -125,6 +125,81 @@ function PenumbraPresetPicker({ renderer }: PenumbraPresetPickerProps) {
   );
 }
 
+interface PenumbraMeshExportProps {
+  renderer: QualiaRenderer;
+}
+
+/**
+ * Penumbra mesh-export panel — Wave 3 Phase 5e. Two buttons (OBJ +
+ * STL) that call `QualiaRenderer.exportPenumbraMesh(format)` and
+ * trigger a download via Blob URL. Surfaces a status line showing
+ * vertex/triangle counts + timing on success, and a hint when the
+ * export isn't ready (no atlas, tape-only, or older @penumbra/three
+ * tarball without the API).
+ */
+function PenumbraMeshExport({ renderer }: PenumbraMeshExportProps) {
+  const [status, setStatus] = useState<string>('');
+  const [statusKind, setStatusKind] = useState<'idle' | 'ok' | 'warn' | 'error'>('idle');
+
+  const exportMesh = useCallback((format: 'obj' | 'stl') => {
+    try {
+      const result = renderer.exportPenumbraMesh?.(format);
+      if (!result) {
+        setStatus(
+          'Mesh export not available. Switch to atlas mode and ensure @penumbra/three v0.1.14+ is installed.',
+        );
+        setStatusKind('warn');
+        return;
+      }
+      const blob = new Blob([result.data], { type: result.mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `qualia-mesh.${result.suggestedExtension}`;
+      a.click();
+      URL.revokeObjectURL(url);
+      const bytes = typeof result.data === 'string' ? result.data.length : result.data.byteLength;
+      setStatus(
+        `Exported ${result.suggestedExtension.toUpperCase()}: ${result.brickCount} bricks → ` +
+        `${result.triangleCount} tris, ${result.vertexCount} verts ` +
+        `(${result.elapsedMs} ms, ${bytes} bytes)`,
+      );
+      setStatusKind('ok');
+    } catch (err) {
+      setStatus(`Export failed: ${(err as Error).message}`);
+      setStatusKind('error');
+    }
+  }, [renderer]);
+
+  const statusColor =
+    statusKind === 'ok' ? '#9fe09f' :
+    statusKind === 'warn' ? '#ffc466' :
+    statusKind === 'error' ? '#ff6666' :
+    '#999';
+
+  return (
+    <div className="perf-section">
+      <div className="perf-section-title">Penumbra mesh export</div>
+      <div className="perf-toggle-hint" style={{ marginBottom: 6 }}>
+        Triangulates the SDF atlas via marching cubes (CPU). Atlas mode required;
+        tape-only scenes have nothing to export.
+      </div>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button onClick={() => exportMesh('obj')} style={{ flex: 1 }}>Export OBJ</button>
+        <button onClick={() => exportMesh('stl')} style={{ flex: 1 }}>Export STL</button>
+      </div>
+      {status && (
+        <div
+          className="perf-toggle-hint"
+          style={{ marginTop: 8, color: statusColor, whiteSpace: 'pre-wrap' }}
+        >
+          {status}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function PerfPanel({ renderer, onClose }: PerfPanelProps) {
   const [perf, setPerf] = useState<PerfSettings>(() => renderer.getPerfSettings());
   const [fps, setFps] = useState<number>(0);
@@ -201,6 +276,8 @@ export function PerfPanel({ renderer, onClose }: PerfPanelProps) {
         </div>
 
         <PenumbraPresetPicker renderer={renderer} />
+
+        <PenumbraMeshExport renderer={renderer} />
 
         <div className="perf-section">
           <div className="perf-section-title">Penumbra (SDF backdrop)</div>

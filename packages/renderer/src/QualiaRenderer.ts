@@ -137,6 +137,17 @@ export class QualiaRenderer {
     return this._scene.getPenumbraDisplayState();
   }
 
+  /**
+   * Export the Penumbra atlas as a triangulated mesh (OBJ or STL).
+   * Returns null when the pass isn't attached, the @penumbra/three
+   * version doesn't expose `exportMesh` yet, or the scene has no
+   * atlas (tape-only mode). PerfPanel uses this to wire its mesh-
+   * export buttons. (Wave 3 Phase 5e.)
+   */
+  exportPenumbraMesh(format: 'obj' | 'stl'): ReturnType<SceneManager['exportPenumbraMesh']> {
+    return this._scene.exportPenumbraMesh(format);
+  }
+
   // --- Node display mode (ADR Qualia 0003) ---
 
   setNodeDisplayMode(mode: import('@qualia/core').NodeDisplayMode): void {

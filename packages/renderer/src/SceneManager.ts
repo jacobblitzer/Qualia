@@ -1406,6 +1406,40 @@ export class SceneManager {
   }
 
   /**
+   * Export the current Penumbra atlas as a triangulated mesh (Wavefront
+   * OBJ or binary STL). Wraps `PenumbraPass.exportMesh` (shipped in
+   * @penumbra/three v0.1.14+ — Wave 3 Phase 5e). Returns null when
+   * the pass isn't attached, the runtime doesn't expose `exportMesh`
+   * yet, or the scene is in tape-only mode (no atlas → nothing to
+   * export). Caller should treat null as "not ready" and surface a
+   * UI prompt.
+   */
+  exportPenumbraMesh(format: 'obj' | 'stl'): {
+    data: string | ArrayBuffer;
+    mimeType: string;
+    suggestedExtension: 'obj' | 'stl';
+    vertexCount: number;
+    triangleCount: number;
+    brickCount: number;
+    elapsedMs: number;
+  } | null {
+    if (!this._penumbra) return null;
+    const fn = (this._penumbra as {
+      exportMesh?: (format: 'obj' | 'stl') => {
+        data: string | ArrayBuffer;
+        mimeType: string;
+        suggestedExtension: 'obj' | 'stl';
+        vertexCount: number;
+        triangleCount: number;
+        brickCount: number;
+        elapsedMs: number;
+      } | null;
+    }).exportMesh;
+    if (typeof fn !== 'function') return null;
+    return fn.call(this._penumbra, format);
+  }
+
+  /**
    * Update one or more perf toggles. Side-effects fire immediately:
    * subsystem visibility updates, Penumbra resolution rescales, and
    * any flag affecting compileGraphToScene triggers a scene re-push.

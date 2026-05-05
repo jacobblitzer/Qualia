@@ -58,6 +58,7 @@ Penumbra ADR 0011 phases 1–4 land.
 Recent Penumbra capabilities Qualia consumes:
 - **Depth output** — `pass.depthTexture` (CanvasTexture wrapping 24-bit-packed NDC depth). Used by `PenumbraBackdropMaterial` for depth-aware composite (Bug 0023 fix).
 - **Particulate render mode** (Penumbra ADR 0010) — `pass.setRenderMode('surface'|'particulate'|'blend')` + `pass.setParticulateParams(...)`. Atlas-seeded by default when the brick atlas is built; auto-falls-back to screen-pixel seeding otherwise. Wired through Qualia's Perf panel "Particulate (Penumbra)" section.
+- **Mesh export (Wave 3 Phase 5e, 2026-05-05)** — `pass.exportMesh(format, options?)` returns `{ data: string | ArrayBuffer, mimeType, suggestedExtension, vertexCount, triangleCount, brickCount, elapsedMs } | null`. Format = `'obj' | 'stl'`. Walks the cascade manager's allocated bricks via the CPU mesh-extraction pipeline (marching cubes → vertex welding → gradient-sampled normals → format writer). Returns null when tape-only (no atlas) or `@penumbra/three` is older than the API. Qualia exposes this via `QualiaRenderer.exportPenumbraMesh(format)` + a "Penumbra mesh export" panel in PerfPanel with OBJ + STL buttons. Available in `@penumbra/three` v0.1.14+.
 
 The tarballs in `Penumbra/dist-pkg/` are the only thing Qualia sees from Penumbra — Qualia does not read Penumbra source. To get a new Penumbra version into Qualia:
 
