@@ -1306,12 +1306,20 @@ export class SceneManager {
     // smooth-union of 12 spheres + 23 capsules compiles to a tape too long
     // for Penumbra's default `tapeEvalLimit: 50`, which would flip it to
     // atlas mode and render via a bounding-sphere companion until the atlas
-    // bake completes (often never visible to the user). multi-tape mode
-    // tells Penumbra "evaluate all fields' actual tapes, regardless of
+    // bake completes (often never visible to the user). atomMode='tape'
+    // tells Penumbra "evaluate all fields' actual tapes regardless of
     // length" — the network silhouette appears as a gloopy spaceframe
     // instead of a uniform sphere. Combined with PenumbraPass's now-bumped
     // `tapeEvalLimit: 500` (Viewport.tsx) this is belt-and-suspenders.
-    pass.setEvalMode('multi-tape');
+    //
+    // Wave 3 Phase 5f (Qualia ADR-0011 alignment audit, 2026-05-05) —
+    // migrated from `pass.setEvalMode('multi-tape')` to the
+    // DisplayState-aligned `setDisplayState({ atomMode: 'tape' })`.
+    // 'multi-tape' was a WebGL2 fallback shader mode; on WebGPU
+    // (Qualia's only backend) Penumbra coerced it to 'tape' anyway.
+    // The new call is explicit + DisplayState-aligned + matches what
+    // ADR 0013 B0 prescribes.
+    pass.setDisplayState({ atomMode: 'tape' });
 
     // Resize the pass to match the current canvas, scaled by the perf flag.
     const scale = this._perf.penumbraResolutionScale;
@@ -1403,6 +1411,31 @@ export class SceneManager {
     if (!this._penumbra) return null;
     const fn = (this._penumbra as { getDisplayState?: () => unknown }).getDisplayState;
     return typeof fn === 'function' ? fn.call(this._penumbra) : null;
+  }
+
+  /**
+   * Subscribe to Penumbra DisplayState changes (Phase 5f — Qualia
+   * ADR-0011 alignment). The listener fires on every Penumbra-side
+   * change including external preset application via
+   * `loadPenumbraPreset`, `setDisplayState` calls from RunCommand
+   * test paths, or any future programmatic mutation. Lets Qualia UI
+   * mirror Penumbra state instead of going stale after a preset
+   * load.
+   *
+   * Returns an unsubscribe function. Returns a no-op unsubscribe
+   * when the pass isn't attached or the runtime doesn't expose
+   * `onDisplayChange` yet (older `@penumbra/three` tarballs).
+   *
+   * Usage pattern: PerfPanel calls this on mount and re-reads
+   * `getPenumbraDisplayState()` each fire to refresh UI.
+   */
+  onPenumbraDisplayChange(listener: (state: unknown) => void): () => void {
+    if (!this._penumbra) return () => {};
+    const subscribe = (this._penumbra as {
+      onDisplayChange?: (cb: (state: unknown) => void) => () => void;
+    }).onDisplayChange;
+    if (typeof subscribe !== 'function') return () => {};
+    return subscribe.call(this._penumbra, listener);
   }
 
   /**

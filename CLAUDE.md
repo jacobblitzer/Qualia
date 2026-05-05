@@ -60,6 +60,50 @@ Recent Penumbra capabilities Qualia consumes:
 - **Particulate render mode** (Penumbra ADR 0010) — `pass.setRenderMode('surface'|'particulate'|'blend')` + `pass.setParticulateParams(...)`. Atlas-seeded by default when the brick atlas is built; auto-falls-back to screen-pixel seeding otherwise. Wired through Qualia's Perf panel "Particulate (Penumbra)" section.
 - **Mesh export (Wave 3 Phase 5e, 2026-05-05)** — `pass.exportMesh(format, options?)` returns `{ data: string | ArrayBuffer, mimeType, suggestedExtension, vertexCount, triangleCount, brickCount, elapsedMs } | null`. Format = `'obj' | 'stl'`. Walks the cascade manager's allocated bricks via the CPU mesh-extraction pipeline (marching cubes → vertex welding → gradient-sampled normals → format writer). Returns null when tape-only (no atlas) or `@penumbra/three` is older than the API. Qualia exposes this via `QualiaRenderer.exportPenumbraMesh(format)` + a "Penumbra mesh export" panel in PerfPanel with OBJ + STL buttons. Available in `@penumbra/three` v0.1.14+.
 
+### Wave 3 Phase 5f — DisplayState alignment audit (2026-05-05)
+
+Audit of Qualia's Penumbra integration against ADR 0011's
+`DisplayState` model (Penumbra-side, shipped 2026-05-03):
+
+**Aligned (no work):**
+- `loadPenumbraPreset` → `pass.loadDisplayPreset` ✓ (PerfPanel
+  PenumbraPresetPicker uses correctly).
+- `getPenumbraDisplayState` → `pass.getDisplayState` ✓.
+- `listPenumbraPresets` → `pass.listDisplayPresets` ✓.
+
+**Drift fixed in 5f:**
+- `pass.setEvalMode('multi-tape')` → `pass.setDisplayState({ atomMode: 'tape' })`.
+  Was a legacy WebGL2 fallback shader mode; on WebGPU (Qualia's
+  only backend) Penumbra coerced 'multi-tape' → 'tape' anyway,
+  but the call was second-writer drift. ADR 0013 B0 prescribes
+  routing eval mode through `DisplayState.atomMode`. Now
+  explicit + DisplayState-aligned.
+- `onDisplayChange` was unwired. Now exposed via
+  `SceneManager.onPenumbraDisplayChange(listener)` +
+  `QualiaRenderer.onPenumbraDisplayChange(listener)`. Returns
+  unsubscribe fn (no-op if pass not attached or runtime is
+  older). PerfPanel can now subscribe to track external preset
+  application for live UI updates — usage is opt-in; current
+  PerfPanel doesn't yet (separate UI work).
+
+**Drift deferred to Qualia ADR 0010 (proposed, not yet shipped):**
+- `pass.setLightingSettings(...)` direct calls → could route
+  through `setDisplayState({ environment: { lighting: ... } })`.
+- `pass.setRenderMode(...)` direct calls → could route through
+  `setDisplayState({ displayMode: ... })`.
+- `pass.setParticulateParams(...)` direct calls → could route
+  through `setDisplayState({ particulate: ... })`.
+- `SceneManager.setPerfSettings` should dispatch through
+  `_penumbra.setDisplayState(partial)` for Penumbra-controlled
+  axes, keeping Qualia-only axes (theme, scene visibility, halo
+  opacity) in PerfSettings.
+
+These all use the legacy per-axis Penumbra setters which still
+work; the migration to DisplayState routing is the scope of
+Qualia ADR 0010 (proposed 2026-05-03, sequenced after Penumbra
+ADR 0011 phases 1-4 — those phases shipped, so the next step
+is Qualia-side execution). Not Phase 5f scope.
+
 The tarballs in `Penumbra/dist-pkg/` are the only thing Qualia sees from Penumbra — Qualia does not read Penumbra source. To get a new Penumbra version into Qualia:
 
 1. Penumbra produces new tarballs (see `Penumbra/dist-pkg/README.md`) and tags `v0.1.x`.

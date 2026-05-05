@@ -138,6 +138,16 @@ export class QualiaRenderer {
   }
 
   /**
+   * Subscribe to Penumbra DisplayState changes. Fires on external
+   * preset application + any other Penumbra-side mutation. Returns
+   * an unsubscribe function (no-op when the pass isn't attached or
+   * the runtime doesn't expose the API yet). Wave 3 Phase 5f.
+   */
+  onPenumbraDisplayChange(listener: (state: unknown) => void): () => void {
+    return this._scene.onPenumbraDisplayChange(listener);
+  }
+
+  /**
    * Export the Penumbra atlas as a triangulated mesh (OBJ or STL).
    * Returns null when the pass isn't attached, the @penumbra/three
    * version doesn't expose `exportMesh` yet, or the scene has no
